@@ -1,0 +1,247 @@
+@page "/reporte-DeudasPendientes"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    /* Estilos generales */
+    .deudas-container {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+    }
+
+    /* Encabezado */
+    .deudas-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #0d6efd;
+    }
+
+    .deudas-title {
+        color: #0d6efd;
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    /* Barra de búsqueda */
+    .search-deudas-container {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .search-deudas-input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+        .search-deudas-input:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+    /* Botón de descarga */
+    .download-deudas-button {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .download-deudas-button:hover {
+            background-color: #0b5ed7;
+            transform: translateY(-2px);
+        }
+
+    /* Tabla */
+    .deudas-table-container {
+        overflow-x: auto;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 15px;
+    }
+
+    .deudas-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+        .deudas-table thead {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .deudas-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .deudas-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .deudas-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .deudas-table tr:hover {
+            background-color: #e9ecef;
+        }
+
+    /* Estilos para estados */
+    .estado-pendiente {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .estado-pagado {
+        color: #198754;
+        font-weight: 600;
+    }
+
+    /* Mensajes */
+    .loading-deudas-message, .no-deudas-message {
+        text-align: center;
+        padding: 30px;
+        color: #6c757d;
+        font-size: 1.1rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Responsive para móviles */
+    @@media (max-width: 768px) {
+        .deudas-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .deudas-title {
+            font-size: 1.5rem;
+        }
+
+        .download-deudas-button {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .deudas-table th, .deudas-table td {
+            padding: 8px 10px;
+            font-size: 0.9rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .deudas-container {
+            padding: 15px;
+        }
+
+        .deudas-table th, .deudas-table td {
+            padding: 6px 8px;
+            font-size: 0.85rem;
+        }
+    }
+</style>
+
+<div class="deudas-container">
+    <div class="deudas-header">
+        <h3 class="deudas-title">Reporte de Facturas</h3>
+    </div>
+
+    <div class="search-deudas-container">
+        <input @bind="filtro" placeholder="Buscar..." class="search-deudas-input" />
+    </div>
+
+    <button class="download-deudas-button" @onclick="DescargarPdf">
+        <i class="fas fa-file-pdf"></i> Descargar PDF
+    </button>
+
+    @if (itemsFiltrados == null)
+    {
+        <p class="loading-deudas-message">Cargando datos...</p>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <p class="no-deudas-message">No se encontraron datos.</p>
+    }
+    else
+    {
+        <div class="deudas-table-container">
+            <table class="deudas-table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(Compra).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(Compra).GetProperties())
+                            {
+                                <td class="@((prop.Name == "Estado") ? (item.Estado == "Pendiente" ? "estado-pendiente" : "estado-pagado") : "")">
+                                    @prop.GetValue(item)
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Compra> items = new();
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<Compra>>("api/Compra/Deudas");
+    }
+
+    private List<Compra> itemsFiltrados =>
+    string.IsNullOrWhiteSpace(filtro)
+    ? items
+    : items.Where(x =>
+        x.idCompra.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+        x.Estado.Contains(filtro, StringComparison.OrdinalIgnoreCase)
+      ).ToList();
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("/api/Compra/DescargarReporteDeudasPendientes").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}

@@ -1,0 +1,718 @@
+﻿@page "/Abonos"
+@page "/Abonos/{idCredito}"
+@using System.Net.Http
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+
+<div class="abonos-container">
+    <div class="abonos-header bg-primary">
+        <h3><i class="fas fa-hand-holding-usd me-2"></i>Gestión de Abonos</h3>
+    </div>
+
+    <div class="abonos-content">
+        <div class="abonos-toolbar">
+            <button class="btn btn-primary" @onclick="MostrarFormulario">
+                <i class="fas fa-plus-circle me-2"></i>Nuevo Abono
+            </button>
+
+            <div class="abonos-search">
+                <input type="text" class="form-control" placeholder="Buscar abonos..."
+                       @bind="filtroBusqueda" @oninput="BuscarAbonos" />
+                <button class="btn btn-search" @onclick="BuscarAbonos">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+
+        @if (mostrarForm)
+        {
+            <div class="abonos-modal-overlay">
+                <div class="abonos-modal">
+                    <div class="modal-header">
+                        <h4><i class="fas fa-hand-holding-usd me-2"></i>Registrar Abono</h4>
+                        <button class="btn-close" @onclick="CerrarFormulario">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <EditForm Model="@nuevoAbono" OnValidSubmit="@RegistrarAbono">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="alert alert-danger" />
+
+                        <div class="form-group">
+                            <label><i class="fas fa-file-invoice me-2"></i>Factura:</label>
+                            <InputSelect @bind-Value="nuevoAbono.codigoFactura" class="form-control">
+                                <option value="">Seleccione una factura</option>
+                                @foreach (var factura in facturasPendientes)
+                                {
+                                    <option value="@factura.codigoFactura">
+                                        Factura #@factura.codigoFactura -
+                                        Cliente: @factura.codigoCliente -
+                                        Saldo: @factura.saldo.ToString("C")
+                                    </option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => nuevoAbono.codigoFactura)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label><i class="fas fa-dollar-sign me-2"></i>Monto:</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <InputNumber @bind-Value="nuevoAbono.montoAbono" class="form-control"
+                                             step="0.01" min="0.01"
+                                             max="@(GetSaldoFactura() ?? 0)" />
+                            </div>
+                            <small class="text-muted">Saldo disponible: @(GetSaldoFactura()?.ToString("C") ?? "Seleccione una factura")</small>
+                            <ValidationMessage For="@(() => nuevoAbono.montoAbono)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label><i class="fas fa-calendar-alt me-2"></i>Fecha:</label>
+                            <InputDate @bind-Value="nuevoAbono.fechaAbono" class="form-control" />
+                            <ValidationMessage For="@(() => nuevoAbono.fechaAbono)" />
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarFormulario">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        }
+
+        @if (abonos.Count == 0 && !cargando)
+        {
+            <div class="abonos-empty">
+                <i class="fas fa-info-circle"></i>
+                <span>No se encontraron abonos registrados.</span>
+            </div>
+        }
+        else if (cargando)
+        {
+            <div class="abonos-loading">
+                <div class="spinner"></div>
+                <span>Cargando abonos...</span>
+            </div>
+        }
+        else
+        {
+            <div class="abonos-table-container">
+                <table class="abonos-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Factura</th>
+                            <th>Monto</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var abono in abonosFiltrados)
+                        {
+                            <tr>
+                                <td data-label="ID">@abono.idAbono</td>
+                                <td data-label="Factura">@abono.codigoFactura</td>
+                                <td data-label="Monto" class="amount">@abono.montoAbono.ToString("C")</td>
+                                <td data-label="Fecha">@abono.fechaAbono.ToShortDateString()</td>
+                                <td class="actions">
+                                    <button class="btn-action view" @onclick="() => VerDetalle(abono.idAbono)" title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn-action delete" @onclick="async () => await EliminarAbono(abono.idAbono)" title="Eliminar">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="abonos-pagination">
+                <span>Mostrando @abonosFiltrados.Count de @abonos.Count abonos</span>
+
+                <div class="pagination-controls">
+                    <button class="pagination-btn @(paginaActual == 1 ? "disabled" : "")"
+                            @onclick="() => CambiarPagina(paginaActual - 1)">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+
+                    @for (int i = 1; i <= totalPaginas; i++)
+                    {
+                        <button class="pagination-btn @(i == paginaActual ? "active" : "")"
+                                @onclick="() => CambiarPagina(i)">
+                            @i
+                        </button>
+                    }
+
+                    <button class="pagination-btn @(paginaActual == totalPaginas ? "disabled" : "")"
+                            @onclick="() => CambiarPagina(paginaActual + 1)">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+
+@code {
+    private List<Abono> abonos = new List<Abono>();
+    private List<Abono> abonosFiltrados = new List<Abono>();
+    private List<Factura> facturasPendientes = new List<Factura>();
+    private Abono nuevoAbono = new Abono { fechaAbono = DateTime.Now };
+    private bool mostrarForm = false;
+    private bool cargando = true;
+    private string filtroBusqueda = "";
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int totalPaginas = 1;
+
+    [Parameter]
+    public string IdCredito { get; set; }
+
+    public class Factura
+    {
+        public int codigoFactura { get; set; }
+        public int codigoCliente { get; set; }
+        public DateTime fecha { get; set; }
+        public decimal totalFactura { get; set; }
+        public decimal saldo { get; set; }
+        public string tipo { get; set; }
+        public string estadoCredito { get; set; }
+    }
+
+    public class Abono
+    {
+        public int idAbono { get; set; }
+        public int codigoFactura { get; set; }
+        public int IdCredito { get; set; }
+        public decimal montoAbono { get; set; }
+        public DateTime fechaAbono { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAbonos();
+        await CargarFacturasConCreditoPendiente();
+
+        if (!string.IsNullOrEmpty(IdCredito))
+        {
+            // Filtrar abonos por crédito si se especificó un IdCredito
+            abonos = abonos.Where(a => a.IdCredito == int.Parse(IdCredito)).ToList();
+            FiltrarAbonos();
+        }
+
+        cargando = false;
+    }
+
+    private async Task CargarFacturasConCreditoPendiente()
+    {
+        try
+        {
+            facturasPendientes = await Http.GetFromJsonAsync<List<Factura>>(
+                "/api/Credito/GetFacturasConCreditoActivo");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("console.error", $"Error al cargar facturas: {ex.Message}");
+        }
+    }
+
+    private async Task CargarAbonos()
+    {
+        try
+        {
+            abonos = await Http.GetFromJsonAsync<List<Abono>>("/api/Abono/GetAllAbonos");
+            FiltrarAbonos();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("console.error", $"Error al cargar abonos: {ex.Message}");
+        }
+    }
+
+    private void FiltrarAbonos()
+    {
+        var query = abonos.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filtroBusqueda))
+        {
+            query = query.Where(a =>
+                a.idAbono.ToString().Contains(filtroBusqueda) ||
+                a.codigoFactura.ToString().Contains(filtroBusqueda) ||
+                a.montoAbono.ToString().Contains(filtroBusqueda) ||
+                a.fechaAbono.ToString().Contains(filtroBusqueda));
+        }
+
+        totalPaginas = (int)Math.Ceiling((double)query.Count() / itemsPorPagina);
+        abonosFiltrados = query
+            .Skip((paginaActual - 1) * itemsPorPagina)
+            .Take(itemsPorPagina)
+            .ToList();
+    }
+
+    private void CambiarPagina(int pagina)
+    {
+        paginaActual = pagina;
+        FiltrarAbonos();
+    }
+
+    private void BuscarAbonos()
+    {
+        paginaActual = 1;
+        FiltrarAbonos();
+    }
+
+    private void MostrarFormulario()
+    {
+        nuevoAbono = new Abono
+            {
+                fechaAbono = DateTime.Now,
+                IdCredito = string.IsNullOrEmpty(IdCredito) ? 0 : int.Parse(IdCredito)
+            };
+        mostrarForm = true;
+    }
+
+    private void CerrarFormulario()
+    {
+        mostrarForm = false;
+    }
+
+    private decimal? GetSaldoFactura()
+    {
+        if (nuevoAbono.codigoFactura == 0) return null;
+        return facturasPendientes.FirstOrDefault(f => f.codigoFactura == nuevoAbono.codigoFactura)?.saldo;
+    }
+
+    private async Task RegistrarAbono()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/Abono/registrar-abono", nuevoAbono);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Abono registrado exitosamente");
+                await CargarAbonos();
+                await CargarFacturasConCreditoPendiente();
+                mostrarForm = false;
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Error: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error general: {ex.Message}");
+        }
+    }
+
+    private async Task VerDetalle(int idAbono)
+    {
+        // Implementar lógica para ver detalles del abono
+        Navigation.NavigateTo($"/DetalleAbono/{idAbono}");
+    }
+
+    private async Task EliminarAbono(int idAbono)
+    {
+        bool confirmar = await JSRuntime.InvokeAsync<bool>("confirm",
+            new[] { "¿Está seguro que desea eliminar este abono?" });
+
+        if (!confirmar) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/Abono/eliminar-abono/{idAbono}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await CargarAbonos();
+                await JSRuntime.InvokeVoidAsync("alert", "Abono eliminado exitosamente");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Error: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error general: {ex.Message}");
+        }
+    }
+}
+
+<style>
+    /* Variables de color */
+    :root {
+        --primary-color: #1976d2;
+        --primary-light: #e3f2fd;
+        --primary-dark: #0d47a1;
+        --secondary-color: #2196f3;
+        --success-color: #4caf50;
+        --danger-color: #f44336;
+        --warning-color: #ff9800;
+        --info-color: #2196f3;
+        --light-gray: #f5f5f5;
+        --medium-gray: #e0e0e0;
+        --dark-gray: #757575;
+        --dark: #212121;
+        --white: #ffffff;
+    }
+
+    /* Estilos base */
+    .abonos-container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background-color: var(--light-gray);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .abonos-header {
+        padding: 1rem;
+        color: var(--white);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+        .abonos-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+    .abonos-content {
+        padding: 1rem;
+    }
+
+    .abonos-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .abonos-search {
+        display: flex;
+        flex: 1;
+        min-width: 250px;
+        max-width: 400px;
+    }
+
+        .abonos-search input {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+    .btn-search {
+        background-color: var(--primary-color);
+        color: var(--white);
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+        .btn-search:hover {
+            background-color: var(--primary-dark);
+        }
+
+    /* Modal */
+    .abonos-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 1rem;
+    }
+
+    .abonos-modal {
+        background-color: var(--white);
+        border-radius: 8px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        animation: modalFadeIn 0.3s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: var(--primary-color);
+        color: var(--white);
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+
+        .modal-header h4 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+    .btn-close {
+        background: none;
+        border: none;
+        color: var(--white);
+        font-size: 1.25rem;
+        cursor: pointer;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+        padding: 0 1.5rem;
+    }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--medium-gray);
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        margin-top: 1rem;
+        border-top: 1px solid var(--medium-gray);
+    }
+
+    /* Tabla */
+    .abonos-table-container {
+        width: 100%;
+        overflow-x: auto;
+        margin-bottom: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        background-color: var(--white);
+    }
+
+    .abonos-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .abonos-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .abonos-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .abonos-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .abonos-table tr:hover {
+            background-color: var(--primary-light);
+        }
+
+    .amount {
+        font-weight: 600;
+        color: var(--primary-dark);
+    }
+
+    .actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-action {
+        border: none;
+        background: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+        .btn-action.view {
+            color: var(--info-color);
+        }
+
+        .btn-action.delete {
+            color: var(--danger-color);
+        }
+
+        .btn-action:hover {
+            opacity: 0.8;
+        }
+
+    /* Paginación */
+    .abonos-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .pagination-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .pagination-btn {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--medium-gray);
+        background-color: var(--white);
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+        .pagination-btn.active {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-color: var(--primary-color);
+        }
+
+        .pagination-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    /* Estados vacío/cargando */
+    .abonos-empty, .abonos-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background-color: var(--white);
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+        .abonos-empty i {
+            font-size: 2rem;
+            color: var(--dark-gray);
+            margin-bottom: 1rem;
+        }
+
+        .abonos-loading .spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid var(--primary-light);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+    /* Animaciones */
+    @@keyframes modalFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Responsive para móviles */
+    @@media (max-width: 768px) {
+        .abonos-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .abonos-search {
+            max-width: 100%;
+        }
+
+        .abonos-table {
+            display: block;
+        }
+
+            .abonos-table thead {
+                display: none;
+            }
+
+            .abonos-table tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid var(--medium-gray);
+                border-radius: 8px;
+            }
+
+            .abonos-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.75rem;
+                border-bottom: 1px solid var(--medium-gray);
+            }
+
+                .abonos-table td:last-child {
+                    border-bottom: none;
+                }
+
+                .abonos-table td::before {
+                    content: attr(data-label);
+                    font-weight: 600;
+                    margin-right: 1rem;
+                    color: var(--dark-gray);
+                }
+
+        .actions {
+            justify-content: flex-end;
+        }
+
+        .pagination-controls {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+</style>

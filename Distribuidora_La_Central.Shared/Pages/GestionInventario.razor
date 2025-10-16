@@ -1,0 +1,1423 @@
+﻿@page "/gestioninventario"
+@inject HttpClient Http
+@using System.Net.Http.Json
+@using System.Linq
+@using System.Text.Json
+@using System.Text.Json.Serialization
+
+<div class="inventory-app">
+    <!-- Header Section -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="logo-section">
+                <h1 class="app-title">LECTORALES</h1>
+                <h2 class="app-subtitle">PRODUCCIÓN - INVENTARIO</h2>
+            </div>
+            <div class="user-section">
+                <span class="user-badge">Administrador</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-content">
+        <!-- Products Section -->
+        <section class="products-section">
+            <div class="products-header">
+                <h3>Lista de Productos</h3>
+                <div class="products-controls">
+                    <div class="search-box">
+                        <input type="text" placeholder="Buscar producto..." @bind="busqueda"
+                               @onkeypress="@((e) => { if (e.Key == "Enter") BuscarProductos(); })" />
+                        <button class="search-button" @onclick="BuscarProductos">🔍</button>
+                    </div>
+                    <button class="add-button" @onclick="ShowAddForm">+ Agregar Producto</button>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="table-container">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>Descripción</th>
+                            <th>Cantidad</th>
+                            <th>Unidad</th>
+                            <th>Categoría</th>
+                            <th>Descuento</th>
+                            <th>Costo</th>
+                            <th>Items</th>
+                            <th>Bodega</th>
+                            <th>Medida</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (productosFiltrados != null && productosFiltrados.Any())
+                        {
+                            @foreach (var p in productosFiltrados)
+                            {
+                                <tr>
+                                    <td>@p.descripcion</td>
+                                    <td>@p.cantidad</td>
+                                    <td>@p.unidadMedida</td>
+                                    <td>
+                                        @{
+                                            var categoria = categoriaProductos.FirstOrDefault(c => c.idCategoria == p.idCategoria);
+                                            @(categoria?.nombre ?? "N/A")
+                                        }
+                                    </td>
+                                    <td>@p.descuento.ToString("P1")</td>
+                                    <td>C$@p.costo.ToString("N2")</td>
+                                    <td>@p.items</td>
+                                    <td>
+                                        @{
+                                            var bodega = bodegas.FirstOrDefault(b => b.idBodega == p.idBodega);
+                                            @(bodega?.nombre ?? "N/A")
+                                        }
+                                    </td>
+                                    <td>@p.unidadMedida</td>
+                                    <td class="actions-cell">
+                                        <button class="action-btn edit-btn" @onclick="() => EditarProducto(p)" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="action-btn delete-btn" @onclick="() => EliminarProducto(p.codigoProducto)" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="9" class="no-results">
+                                    @(productos == null ? "Cargando productos..." : "No se encontraron productos")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Product Form Modal -->
+    @if (showForm)
+    {
+        <div class="modal-overlay" @onclick="HideForm"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas @(productoActual.codigoProducto == 0 ? "fa-plus-circle" : "fa-edit")"></i>
+                    @(productoActual.codigoProducto == 0 ? "AGREGAR PRODUCTO" : "EDITAR PRODUCTO")
+                </h3>
+                <button class="close-btn" @onclick="HideForm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-grid">
+                    <!-- Row 1 -->
+                    <div class="form-group">
+                        <label><i class="fas fa-align-left"></i> Descripción</label>
+                        <input type="text" @bind="productoActual.descripcion" class="form-input" />
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-hashtag"></i> Cantidad</label>
+                        <input type="number" @bind="productoActual.cantidad" class="form-input" />
+                    </div>
+
+                    <!-- Row 2 -->
+                    <div class="form-group">
+                        <label><i class="fas fa-ruler"></i> Unidad de Medida</label>
+                        <div class="select-with-btn">
+                            <select @bind="productoActual.unidadMedida" class="form-select">
+                                <option value="0">Seleccione una unidad</option>
+                                @foreach (var unidad in unidades.OrderBy(u => u.Nombre))
+                                {
+                                    <option value="@unidad.IdUnidad">@unidad.Nombre</option>
+                                }
+                            </select>
+                            <button class="add-category-btn" @onclick="ShowAddUnidadForm" title="Agregar unidad">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+
+
+
+
+                    <!-- Row 3 -->
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Categoría</label>
+                        <div class="select-with-btn">
+                            <select @bind="productoActual.idCategoria" class="form-select">
+                                <option value="0">Seleccione una categoría</option>
+                                @foreach (var categoria in categoriaProductos.OrderBy(c => c.nombre))
+                                {
+                                    <option value="@categoria.idCategoria">@categoria.nombre</option>
+                                }
+                            </select>
+                            <button class="add-category-btn" @onclick="ShowAddCategoriaForm" title="Agregar categoría">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-percent"></i> Descuento (%)</label>
+                        <input type="number" step="0.1" @bind="productoActual.descuento" class="form-input" />
+                    </div>
+
+                    <!-- Row 4 -->
+                    <div class="form-group">
+                        <label><i class="fas fa-dollar-sign"></i> Costo</label>
+                        <input type="number" step="0.01" @bind="productoActual.costo" class="form-input" />
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-cubes"></i> Items</label>
+                        <input type="number" @bind="productoActual.items" class="form-input" />
+                    </div>
+
+                    <!-- Agrega esta sección donde necesites el selector de bodegas -->
+                    <div class="form-group">
+                        <label><i class="fas fa-warehouse"></i> Bodega</label>
+                        <div class="select-with-btn">
+                            <select @bind="productoActual.idBodega" class="form-select">
+                                <option value="0">Seleccione una bodega</option>
+                                @foreach (var bodega in bodegas.OrderBy(b => b.nombre))
+                                {
+                                    <option value="@bodega.idBodega">@bodega.nombre</option>
+                                }
+                            </select>
+                            <button class="add-category-btn" @onclick="ShowAddBodegaForm" title="Agregar bodega">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label><i class="fas fa-truck"></i> Proveedor</label>
+                        <select @bind="productoActual.idProveedor" class="form-select">
+                            <option value="0">Seleccione un proveedor</option>
+                            @foreach (var prov in proveedores.OrderBy(p => p.nombre))
+                            {
+                                <option value="@prov.idProveedor">@prov.nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn cancel-btn" @onclick="HideForm">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button class="btn save-btn" @onclick="GuardarProducto">
+                        <i class="fas fa-save"></i> @(productoActual.codigoProducto == 0 ? "AGREGAR" : "GUARDAR")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Modal para agregar nueva bodega -->
+    @if (showBodegaForm)
+    {
+        <div class="modal-overlay" @onclick="HideBodegaForm"></div>
+        <div class="modal-container small-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-warehouse"></i> Agregar Nueva Bodega</h3>
+                <button class="close-btn" @onclick="HideBodegaForm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" @bind="nuevaBodega.nombre" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                    <label>Ubicación:</label>
+                    <input type="text" @bind="nuevaBodega.ubicacion" class="form-input" />
+                </div>
+
+                <!-- Nuevos campos agregados -->
+                <div class="form-group">
+                    <label>Responsable (ID):</label>
+                    <input type="number" @bind="nuevaBodega.responsable" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha:</label>
+                    <input type="datetime-local" @bind="nuevaBodega.fecha" class="form-input"
+                           format-value="yyyy-MM-ddTHH:mm" />
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn cancel-btn" @onclick="HideBodegaForm">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button class="btn save-btn" @onclick="GuardarBodega">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Modal para agregar nueva unidad (similar al de categorías) -->
+    @if (showUnidadForm)
+    {
+        <div class="modal-overlay" @onclick="HideUnidadForm"></div>
+        <div class="modal-container small-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-ruler"></i> Agregar Nueva Unidad</h3>
+                <button class="close-btn" @onclick="HideUnidadForm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" @bind="nuevaUnidad.Nombre" class="form-input" />
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn cancel-btn" @onclick="HideUnidadForm">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button class="btn save-btn" @onclick="GuardarUnidad">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    <!-- Category Form Modal -->
+    @if (showCategoriaForm)
+    {
+        <div class="modal-overlay" @onclick="HideCategoriaForm"></div>
+        <div class="modal-container small-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-tag"></i> Agregar Nueva Categoría</h3>
+                <button class="close-btn" @onclick="HideCategoriaForm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" @bind="nuevaCategoria.nombre" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción:</label>
+                    <input type="text" @bind="nuevaCategoria.descripcion" class="form-input" />
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn cancel-btn" @onclick="HideCategoriaForm">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button class="btn save-btn" @onclick="GuardarCategoria">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Mensajes de estado -->
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="status-message @(mensaje.Contains("✅") ? "success" : "error")">
+            @mensaje
+        </div>
+    }
+</div>
+
+@code {
+
+    private Bodega nuevaBodega = new();
+    private bool showBodegaForm = false;
+
+
+    private UnidadMedida unidadActual = new();
+    private bool showUnidadForm = false;
+    private bool modoEditarUnidad = false;
+    private UnidadMedida nuevaUnidad = new();
+
+    public class Bodega
+    {
+        public int idBodega { get; set; }
+        public string nombre { get; set; }
+        public string ubicacion { get; set; }
+        public int responsable { get; set; } = 0; // Valor por defecto
+        public DateTime fecha { get; set; } = DateTime.Now; // Fecha actual por defecto
+    }
+
+    public class Producto
+    {
+        public int codigoProducto { get; set; }
+        public string descripcion { get; set; }
+        public int cantidad { get; set; }
+        public int idCategoria { get; set; }
+        public decimal descuento { get; set; }
+        public decimal costo { get; set; }
+        public int items { get; set; }
+        public int idBodega { get; set; }
+        public int idProveedor { get; set; }
+
+        // Nuevas propiedades
+        public string unidadMedida { get; set; }    // NUEVO
+        public decimal margenGanancia { get; set; }  // NUEVO
+
+    }
+
+    public class CategoriaProducto
+    {
+        public int idCategoria { get; set; }
+        public string nombre { get; set; }
+        public string descripcion { get; set; }
+    }
+
+    public class Proveedor
+    {
+        public int idProveedor { get; set; }
+        public string nombre { get; set; }
+        public string razonSocial { get; set; }
+        public string contacto { get; set; }
+        public string telefono { get; set; }
+        public DateTime diaIngreso { get; set; }
+    }
+
+    private List<Bodega> bodegas = new();
+    private List<Producto> productos = new();
+    private List<Producto> productosFiltrados = new();
+    private List<Proveedor> proveedores = new();
+
+    private List<UnidadMedida> unidades = new();
+    private List<CategoriaProducto> categoriaProductos = new();
+    private Producto productoActual = new();
+    private CategoriaProducto nuevaCategoria = new();
+    private string mensaje = string.Empty;
+    private string busqueda = string.Empty;
+    private bool showForm = false;
+    private bool showCategoriaForm = false;
+    private bool modoEditar = false;
+    private int categoriaFiltro = 0;
+
+    public class UnidadMedida
+    {
+        public int IdUnidad { get; set; }
+        public string Nombre { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductos();
+        await CargarCategorias();
+        proveedores = await Http.GetFromJsonAsync<List<Proveedor>>("api/Proveedor/obtener-todos") ?? new();
+        await CargarBodegas();
+        await CargarUnidades();
+    }
+
+    private void ShowAddBodegaForm()
+    {
+        nuevaBodega = new Bodega();
+        showBodegaForm = true;
+    }
+
+    private void HideBodegaForm()
+    {
+        showBodegaForm = false;
+    }
+
+    private async Task GuardarBodega()
+    {
+        try
+        {
+            // Validación básica
+            if (string.IsNullOrWhiteSpace(nuevaBodega.nombre))
+            {
+                mensaje = "❌ El nombre de la bodega es requerido";
+                return;
+            }
+
+            // Asegurar que la fecha esté en el rango válido para SQL Server
+            if (nuevaBodega.fecha < new DateTime(1753, 1, 1))
+            {
+                nuevaBodega.fecha = DateTime.Now;
+            }
+
+            var response = await Http.PostAsJsonAsync("api/Bodega/registrar", nuevaBodega);
+
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Bodega registrada correctamente";
+                await CargarBodegas();
+                HideBodegaForm();
+            }
+            else
+            {
+                mensaje = $"❌ Error: {await response.Content.ReadAsStringAsync()}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error inesperado: {ex.Message}";
+        }
+    }
+
+    private async Task CargarBodegas()
+    {
+        try
+        {
+            bodegas = await Http.GetFromJsonAsync<List<Bodega>>("api/Bodega/obtener-todos") ?? new List<Bodega>();
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error al cargar bodegas: {ex.Message}";
+        }
+    }
+
+
+    // Asegúrate de tener este método y llamarlo en OnInitializedAsync
+
+
+    private async Task CargarProductos()
+    {
+        try
+        {
+            productos = await Http.GetFromJsonAsync<List<Producto>>("api/Producto/GetAllProductos") ?? new();
+            productosFiltrados = productos;
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error al cargar productos: {ex.Message}";
+        }
+    }
+
+    private async Task CargarUnidades()
+    {
+        try
+        {
+            unidades = await Http.GetFromJsonAsync<List<UnidadMedida>>("api/UnidadMedida") ?? new();
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error al cargar unidades de medida: {ex.Message}";
+        }
+    }
+
+
+    private void ShowAddUnidadForm()
+    {
+        unidadActual = new UnidadMedida();
+        showUnidadForm = true;
+        modoEditarUnidad = false;
+    }
+
+
+    private void HideUnidadForm()
+    {
+        showUnidadForm = false;
+    }
+
+    private void EditarUnidad(UnidadMedida unidad)
+    {
+        unidadActual = new UnidadMedida
+            {
+                IdUnidad = unidad.IdUnidad,
+                Nombre = unidad.Nombre
+            };
+        showUnidadForm = true;
+        modoEditarUnidad = true;
+    }
+
+    private async Task GuardarUnidad()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(nuevaUnidad.Nombre))
+            {
+                mensaje = "❌ El nombre de la unidad es requerido";
+                return;
+            }
+
+            var response = await Http.PostAsJsonAsync("api/UnidadMedida", nuevaUnidad);
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Unidad agregada con éxito";
+                await CargarUnidades(); // Asegúrate de tener este método
+                HideUnidadForm();
+                // Selecciona automáticamente la nueva unidad añadida
+                var unidadAgregada = await response.Content.ReadFromJsonAsync<UnidadMedida>();
+                productoActual.unidadMedida = unidadAgregada.IdUnidad.ToString();
+            }
+            else
+            {
+                mensaje = "❌ Error al agregar la unidad";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error: {ex.Message}";
+        }
+    }
+
+
+
+    private async Task EliminarUnidad(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/UnidadMedida/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Unidad eliminada con éxito";
+                await CargarUnidades();
+            }
+            else
+            {
+                mensaje = $"❌ Error al eliminar: {await response.Content.ReadAsStringAsync()}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error: {ex.Message}";
+        }
+    }
+
+
+
+    private async Task CargarCategorias()
+    {
+        try
+        {
+            categoriaProductos = await Http.GetFromJsonAsync<List<CategoriaProducto>>("api/CategoriaProducto/obtener-todas-categorias") ?? new();
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error al cargar categorías: {ex.Message}";
+        }
+    }
+
+    private void BuscarProductos()
+    {
+        if (string.IsNullOrWhiteSpace(busqueda))
+        {
+            productosFiltrados = productos;
+            return;
+        }
+
+        var termino = busqueda.ToLower();
+        productosFiltrados = productos.Where(p =>
+            p.descripcion.ToLower().Contains(termino) ||
+            p.codigoProducto.ToString().Contains(termino))
+            .ToList();
+    }
+
+    private void ShowAddForm()
+    {
+        productoActual = new Producto();
+        showForm = true;
+        modoEditar = false;
+    }
+
+    private void ShowAddCategoriaForm()
+    {
+        nuevaCategoria = new CategoriaProducto();
+        showCategoriaForm = true;
+    }
+
+    private void HideForm()
+    {
+        showForm = false;
+        productoActual = new Producto();
+        modoEditar = false;
+    }
+
+    private void HideCategoriaForm()
+    {
+        showCategoriaForm = false;
+        nuevaCategoria = new CategoriaProducto();
+    }
+
+    private void EditarProducto(Producto producto)
+    {
+        productoActual = new Producto
+            {
+                codigoProducto = producto.codigoProducto,
+                descripcion = producto.descripcion,
+                cantidad = producto.cantidad,
+                idCategoria = producto.idCategoria,
+                descuento = producto.descuento,
+                costo = producto.costo,
+                items = producto.items,
+                idBodega = producto.idBodega,
+                idProveedor = producto.idProveedor
+            };
+        showForm = true;
+        modoEditar = true;
+    }
+
+    private async Task GuardarProducto()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(productoActual.unidadMedida))
+            {
+                mensaje = "❌ Por favor seleccione una unidad de medida";
+                return;
+            }
+
+            if (modoEditar)
+            {
+                // Corrige la URL de actualización
+                var response = await Http.PutAsJsonAsync($"api/Producto/ActualizarProducto", productoActual);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    mensaje = "✅ Producto actualizado con éxito";
+                    await CargarProductos();
+                    HideForm();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    mensaje = $"❌ Error al actualizar el producto: {errorContent}";
+                }
+            }
+            else
+            {
+                var response = await Http.PostAsJsonAsync("api/Producto/RegistrarProducto", productoActual);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    mensaje = "✅ Producto agregado con éxito";
+                    await CargarProductos();
+                    HideForm();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    mensaje = $"❌ Error al agregar el producto: {errorContent}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error inesperado: {ex.Message}";
+        }
+    }
+
+    private async Task GuardarCategoria()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(nuevaCategoria.nombre))
+            {
+                mensaje = "❌ El nombre de la categoría es requerido";
+                return;
+            }
+
+            var response = await Http.PostAsJsonAsync("api/CategoriaProducto/registrar-categoria", nuevaCategoria);
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Categoría agregada con éxito";
+                await CargarCategorias();
+                HideCategoriaForm();
+            }
+            else
+            {
+                mensaje = $"❌ Error al agregar categoría: {await response.Content.ReadAsStringAsync()}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error: {ex.Message}";
+        }
+    }
+
+    private async Task EliminarProducto(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Producto/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Producto eliminado con éxito";
+                await CargarProductos();
+            }
+            else
+            {
+                mensaje = $"❌ Error al eliminar: {await response.Content.ReadAsStringAsync()}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error: {ex.Message}";
+        }
+    }
+}
+<style>
+    /* Color Theme */
+    :root {
+        --primary-blue: #1976D2;
+        --dark-blue: #1565C0;
+        --light-blue: #E3F2FD;
+        --accent-blue: #2196F3;
+        --white: #FFFFFF;
+        --light-gray: #F5F5F5;
+        --medium-gray: #E0E0E0;
+        --dark-gray: #757575;
+        --text-dark: #212121;
+        --text-light: #FAFAFA;
+        --success: #4CAF50;
+        --error: #F44336;
+        --warning: #FFC107;
+    }
+
+    /* Base Styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+        background-color: #FAFAFA;
+        color: var(--text-dark);
+    }
+
+    .inventory-app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* Header Styles */
+    .app-header {
+        background-color: var(--primary-blue);
+        color: var(--white);
+        padding: 1rem 1.5rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .logo-section {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .app-subtitle {
+        font-size: 1rem;
+        font-weight: 400;
+        opacity: 0.9;
+    }
+
+    .user-section {
+        display: flex;
+        align-items: center;
+    }
+
+    .user-badge {
+        background-color: var(--dark-blue);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    /* Main Content */
+    .app-content {
+        flex: 1;
+        padding: 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    /* Products Section */
+    .products-section {
+        background-color: var(--white);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: var(--light-blue);
+        border-bottom: 1px solid var(--medium-gray);
+    }
+
+        .section-header h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-blue);
+        }
+
+    .controls-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .products-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        margin-right: 1rem;
+        background-color: white;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+        .search-box:focus-within {
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+
+        .search-box input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 0.9rem;
+            color: #495057;
+            border-radius: 6px 0 0 6px;
+        }
+
+    .search-button {
+        padding: 0.75rem 1rem;
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        border-radius: 0 6px 6px 0;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .search-button:hover {
+            background-color: #1565c0;
+        }
+
+    .add-button {
+        padding: 0.75rem 1.5rem;
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+    }
+
+        .add-button:hover {
+            background-color: #1565c0;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+        }
+
+    @@media (max-width: 768px) {
+        .products-controls {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .search-box {
+            width: 100%;
+            margin-right: 0;
+        }
+
+        .add-button {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    .search-container {
+        display: flex;
+        align-items: center;
+        background-color: var(--white);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .search-input {
+        padding: 0.5rem 1rem;
+        border: none;
+        width: 250px;
+        outline: none;
+        font-size: 0.9rem;
+    }
+
+    .search-btn {
+        padding: 0.5rem 1rem;
+        background-color: var(--primary-blue);
+        color: var(--white);
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+        .search-btn:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .add-btn {
+        padding: 0.5rem 1rem;
+        background-color: var(--primary-blue);
+        color: var(--white);
+        border: none;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+
+        .add-btn:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-1px);
+        }
+
+    /* Table Styles */
+    .table-container {
+        overflow-x: auto;
+        padding: 1rem;
+    }
+
+    .products-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+
+        .products-table th {
+            background-color: var(--light-blue);
+            color: var(--primary-blue);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .products-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--medium-gray);
+            vertical-align: middle;
+        }
+
+        .products-table tr:hover {
+            background-color: rgba(25, 118, 210, 0.05);
+        }
+
+    .actions-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .edit-btn {
+        color: var(--primary-blue);
+    }
+
+        .edit-btn:hover {
+            background-color: rgba(25, 118, 210, 0.1);
+        }
+
+    .delete-btn {
+        color: var(--error);
+    }
+
+        .delete-btn:hover {
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+
+    .no-results {
+        text-align: center;
+        padding: 2rem;
+        color: var(--dark-gray);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+    }
+
+    .modal-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: var(--white);
+        border-radius: 8px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        width: 700px;
+        max-width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+        z-index: 1001;
+    }
+
+    .small-modal {
+        width: 500px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: var(--primary-blue);
+        color: var(--white);
+        border-radius: 8px 8px 0 0;
+    }
+
+        .modal-header h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: var(--white);
+        font-size: 1.25rem;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+
+        .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    /* Form Styles */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 0;
+    }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-dark);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+    .form-input, .form-select {
+        width: 100%;
+        padding: 0.6rem 0.8rem;
+        border: 1px solid var(--medium-gray);
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+            outline: none;
+        }
+
+    .select-with-btn {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .form-select {
+        flex: 1;
+    }
+
+    .add-category-btn {
+        background-color: var(--light-gray);
+        border: 1px solid var(--medium-gray);
+        border-radius: 4px;
+        padding: 0 0.8rem;
+        cursor: pointer;
+        color: var(--primary-blue);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+    }
+
+        .add-category-btn:hover {
+            background-color: var(--medium-gray);
+        }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--medium-gray);
+        margin-top: 1rem;
+    }
+
+    .btn {
+        padding: 0.6rem 1.2rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .save-btn {
+        background-color: var(--success);
+        color: var(--white);
+        border: none;
+    }
+
+        .save-btn:hover {
+            background-color: #3d8b40;
+            transform: translateY(-1px);
+        }
+
+    .cancel-btn {
+        background-color: var(--white);
+        color: var(--text-dark);
+        border: 1px solid var(--medium-gray);
+    }
+
+        .cancel-btn:hover {
+            background-color: var(--light-gray);
+            transform: translateY(-1px);
+        }
+
+    /* Status Message */
+    .status-message {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 4px;
+        color: var(--white);
+        font-weight: 500;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        z-index: 1002;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .success {
+        background-color: var(--success);
+    }
+
+    .error {
+        background-color: var(--error);
+    }
+
+    .message-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .close-message {
+        background: none;
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        margin-left: 1rem;
+        opacity: 0.8;
+    }
+
+        .close-message:hover {
+            opacity: 1;
+        }
+
+    /* Animations */
+    @@keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Responsive Styles */
+    @@media (max-width: 768px) {
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .controls-container {
+            width: 100%;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .search-container {
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+        }
+
+        .add-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .modal-container {
+            width: 95%;
+        }
+
+        .form-actions {
+            flex-direction: column-reverse;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .header-content {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .app-content {
+            padding: 1rem;
+        }
+
+        .products-table th,
+        .products-table td {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .actions-cell {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .action-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 0.9rem;
+        }
+    }
+</style>

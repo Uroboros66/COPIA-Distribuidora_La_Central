@@ -1,0 +1,321 @@
+@page "/reporte-traslados"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    .traslados-container {
+        font-family: 'Segoe UI', 'Roboto', sans-serif;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 25px;
+        background-color: #f5f9ff;
+    }
+
+    .traslados-header {
+        color: #1a237e;
+        margin-bottom: 28px;
+        padding-bottom: 12px;
+        border-bottom: 3px solid #303f9f;
+        font-size: 1.8rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .traslados-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-bottom: 28px;
+        align-items: center;
+    }
+
+    .traslados-search {
+        flex: 1;
+        min-width: 280px;
+        padding: 12px 18px;
+        border: 1px solid #c5cae9;
+        border-radius: 6px;
+        font-size: 15px;
+        transition: all 0.3s ease;
+        background-color: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+        .traslados-search:focus {
+            border-color: #3949ab;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(57, 73, 171, 0.2);
+        }
+
+    .traslados-download {
+        background-color: #3949ab;
+        color: white;
+        border: none;
+        padding: 12px 26px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+        .traslados-download:hover {
+            background-color: #303f9f;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+    .traslados-table-wrapper {
+        overflow-x: auto;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        border: 1px solid #e8eaf6;
+    }
+
+    .traslados-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 750px;
+    }
+
+        .traslados-table th {
+            background-color: #3f51b5;
+            color: white;
+            padding: 14px 18px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .traslados-table td {
+            padding: 12px 18px;
+            border-bottom: 1px solid #e8eaf6;
+            color: #37474f;
+            font-size: 0.95rem;
+        }
+
+        .traslados-table tr:nth-child(even) {
+            background-color: #f3f5fd;
+        }
+
+        .traslados-table tr:hover {
+            background-color: #e8eaf6;
+        }
+
+    .traslados-status {
+        text-align: center;
+        padding: 30px;
+        color: #546e7a;
+        font-size: 1.1rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-top: 25px;
+    }
+
+    /* Estilos para estados */
+    .estado-completado {
+        color: #2e7d32;
+        font-weight: 500;
+    }
+
+    .estado-pendiente {
+        color: #d32f2f;
+        font-weight: 500;
+    }
+
+    .estado-proceso {
+        color: #ff8f00;
+        font-weight: 500;
+    }
+
+    @@media (max-width: 1200px) {
+        .traslados-container {
+            padding: 20px;
+        }
+    }
+
+    @@media (max-width: 992px) {
+        .traslados-header {
+            font-size: 1.6rem;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .traslados-controls {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 15px;
+        }
+
+        .traslados-search {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .traslados-download {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .traslados-table th,
+        .traslados-table td {
+            padding: 10px 14px;
+            font-size: 0.9rem;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .traslados-container {
+            padding: 15px;
+        }
+
+        .traslados-header {
+            font-size: 1.4rem;
+            margin-bottom: 22px;
+        }
+
+        .traslados-status {
+            padding: 25px 15px;
+            font-size: 1rem;
+        }
+
+        .traslados-table-wrapper {
+            border-radius: 6px;
+        }
+
+        .traslados-table {
+            display: block;
+        }
+
+            .traslados-table thead {
+                display: none;
+            }
+
+            .traslados-table tr {
+                display: block;
+                margin-bottom: 16px;
+                border: 1px solid #d1d9ff;
+                border-radius: 6px;
+                padding: 12px;
+            }
+
+            .traslados-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 12px;
+                border-bottom: 1px solid #f0f2ff;
+            }
+
+                .traslados-table td::before {
+                    content: attr(data-label);
+                    font-weight: 600;
+                    margin-right: 15px;
+                    color: #3949ab;
+                    flex: 0 0 140px;
+                }
+    }
+
+    @@media (max-width: 400px) {
+        .traslados-table td::before {
+            flex: 0 0 110px;
+            font-size: 0.85rem;
+        }
+
+        .traslados-table td {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+
+<div class="traslados-container">
+    <h3 class="traslados-header">Reporte de Traslados</h3>
+
+    <div class="traslados-controls">
+        <input @bind="filtro" placeholder="Buscar por ID, producto, bodega..." class="traslados-search" />
+        <button class="traslados-download" @onclick="DescargarPdf">
+            <i class="fas fa-file-pdf"></i> Descargar PDF
+        </button>
+    </div>
+
+    @if (itemsFiltrados == null)
+    {
+        <div class="traslados-status">
+            <p><i class="fas fa-spinner fa-spin"></i> Cargando datos...</p>
+        </div>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <div class="traslados-status">
+            <p><i class="fas fa-box-open"></i> No se encontraron traslados.</p>
+        </div>
+    }
+    else
+    {
+        <div class="traslados-table-wrapper">
+            <table class="traslados-table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(Traslado).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(Traslado).GetProperties())
+                            {
+                                <td data-label="@prop.Name" class="@((prop.Name == "estado") ? "estado-" + item.estado.ToLower() : "")">
+                                    @prop.GetValue(item)
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Traslado> items = new();
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<Traslado>>("api/Traslado/GetTodosLosTraslados");
+    }
+
+    private List<Traslado> itemsFiltrados =>
+     string.IsNullOrWhiteSpace(filtro)
+     ? items
+     : items.Where(x => x.idTraslado.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.codigoProducto.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.idBodegaOrigen.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.idBodegaDestino.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.cantidad.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       (x.fechaTraslado.HasValue && x.fechaTraslado.Value.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase)) ||
+                       x.realizadoPor.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.estado.Contains(filtro, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("/api/Traslado/DescargarReporteTraslados").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}

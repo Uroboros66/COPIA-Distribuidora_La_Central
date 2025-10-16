@@ -1,0 +1,328 @@
+﻿@page "/"
+@inject HttpClient Http
+@inject AppState AppState
+@inject NavigationManager Navigation
+@using Distribuidora_La_Central.Shared.Helpers
+@using Distribuidora_La_Central.Shared.Models
+
+
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="brand-header">
+            
+            <h2 class="company-name">DISTRIBUIDORA LA CENTRAL</h2>
+            <p class="company-slogan">Soluciones logísticas integrales</p>
+        </div>
+
+        <div class="login-form">
+            <h3 class="form-title">Inicio de sesión</h3>
+
+            <div class="input-group">
+                <label>Usuario</label>
+                <input type="text" @bind="nombre" placeholder="Ingrese su nombre de usuario" class="input-field" />
+                <svg class="input-icon" viewBox="0 0 24 24">
+                    <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+                </svg>
+            </div>
+
+            <div class="input-group">
+                <label>Codigo de Acceso</label>
+                <input type="password" @bind="codigoAcceso" placeholder="Ingrese su contraseña" class="input-field" />
+                <svg class="input-icon" viewBox="0 0 24 24">
+                    <path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A6,6 0 0,1 24,14V16H18V14H22A4,4 0 0,0 18,10V8M6,8V10A4,4 0 0,0 2,14H6V16H0V14A6,6 0 0,1 6,8Z" />
+                </svg>
+            </div>
+
+            <button class="btn btn-primary" @onclick="Acceder">
+                <span class="btn-text">Acceder al sistema</span>
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                    <path d="M10,17V14H3V10H10V7L15,12L10,17M10,2H19A2,2 0 0,1 21,4V20A2,2 0 0,1 19,22H10A2,2 0 0,1 8,20V18H10V20H19V4H10V6H8V4A2,2 0 0,1 10,2Z" />
+                </svg>
+            </button>
+
+            @if (!string.IsNullOrEmpty(mensaje))
+            {
+                <div class="error-message">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                    </svg>
+                    <span>@mensaje</span>
+                </div>
+            }
+
+            <div class="login-footer">
+                <a href="/recuperar-contrasena" class="forgot-password">¿Olvidó su contraseña?</a>
+                <p>¿No tiene una cuenta? <a href="/registro">Regístrese aquí</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string nombre = string.Empty;
+    private string codigoAcceso = string.Empty;
+    private string mensaje = string.Empty;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Redirigir si ya está autenticado
+        if (AppState.IsLoggedIn)
+        {
+            Navigation.NavigateTo("/home");
+        }
+    }
+
+
+    private async Task Acceder()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Auth/Login", new
+            {
+                nombre = nombre,
+                codigoAcceso = codigoAcceso
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var usuario = await response.Content.ReadFromJsonAsync<Usuario>();
+
+                // Verificación null-safe
+                if (usuario != null)
+                {
+                    AppState.Login(usuario.nombre, usuario.rol);
+                    Navigation.NavigateTo("/home");
+                }
+                else
+                {
+                    mensaje = "Error al procesar la respuesta del servidor";
+                }
+            }
+            else
+            {
+                mensaje = await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"Error de conexión: {ex.Message}";
+        }
+    }
+
+
+}
+
+
+
+
+
+<style>
+    :root {
+        --primary-color: #0056b3; /* Azul corporativo */
+        --primary-hover: #003d7a;
+        --secondary-color: #e31937; /* Rojo energético */
+        --secondary-hover: #b3142c;
+        --background-light: #f5f5f5; /* Gris claro */
+        --text-dark: #333333; /* Texto principal */
+        --text-light: #777777;
+        --border-color: #dddddd;
+        --success-color: #28a745;
+        --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        background-color: var(--background-light);
+        font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+        margin: 0;
+        padding: 0;
+        color: var(--text-dark);
+        line-height: 1.6;
+    }
+
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+        background-image: linear-gradient(135deg, rgba(0, 86, 179, 0.03) 0%, rgba(227, 25, 55, 0.03) 100%);
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--box-shadow);
+        overflow: hidden;
+        width: 100%;
+        max-width: 450px;
+    }
+
+    .brand-header {
+        background-color: var(--primary-color);
+        padding: 30px 20px;
+        text-align: center;
+        color: white;
+    }
+
+    .logo {
+        width: 80px;
+        height: auto;
+        margin-bottom: 15px;
+    }
+
+    .company-name {
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-size: 1.5rem;
+    }
+
+    .company-slogan {
+        margin: 5px 0 0;
+        font-weight: 300;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    .login-form {
+        padding: 30px;
+    }
+
+    .form-title {
+        text-align: center;
+        margin: 0 0 25px;
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 1.3rem;
+    }
+
+    .input-group {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-dark);
+            font-size: 0.9rem;
+        }
+
+    .input-field {
+        width: 100%;
+        padding: 12px 15px 12px 40px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 15px;
+        transition: all 0.3s;
+    }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+        }
+
+    .input-icon {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        width: 20px;
+        height: 20px;
+        fill: var(--text-light);
+    }
+
+    .input-field:focus + .input-icon {
+        fill: var(--primary-color);
+    }
+
+    .btn {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+        margin-top: 10px;
+    }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 86, 179, 0.2);
+        }
+
+    .btn-icon {
+        width: 18px;
+        height: 18px;
+        fill: white;
+    }
+
+    .error-message {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--secondary-color);
+        background-color: rgba(227, 25, 55, 0.08);
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        font-size: 14px;
+    }
+
+        .error-message svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--secondary-color);
+        }
+
+    .login-footer {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 14px;
+        color: var(--text-light);
+    }
+
+        .login-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+            .login-footer a:hover {
+                text-decoration: underline;
+            }
+
+    .forgot-password {
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    @@media (max-width: 480px) {
+        .login-card {
+            border-radius: 0;
+        }
+
+        .login-container {
+            padding: 0;
+        }
+    }
+</style>

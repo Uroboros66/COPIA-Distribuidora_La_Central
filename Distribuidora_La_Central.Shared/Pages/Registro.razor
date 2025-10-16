@@ -1,0 +1,294 @@
+﻿@page "/registro"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="register-container">
+    <div class="register-card">
+        <div class="logo-container">
+
+            <h2 class="company-name">DISTRIBUIDORA LACENTRAL</h2>
+        </div>
+
+        <h3 class="register-title">Crear nueva cuenta</h3>
+
+        <div class="input-group">
+            <label>Nombre completo</label>
+            <input type="text" @bind="nombre" placeholder="Ingrese su nombre" class="input-field" />
+        </div>
+
+        <div class="input-group">
+            <label>Contraseña</label>
+            <input type="password" @bind="codigoAcceso" placeholder="Cree una contraseña segura" class="input-field" />
+        </div>
+
+        <div class="input-group">
+            <label>Rol de usuario</label>
+            <select @bind="rol" class="input-field">
+                <option value="">Seleccione un rol</option>
+                <option>Administrador</option>
+                <option>Vendedor</option>
+            </select>
+        </div>
+
+        <div class="button-container">
+            <button class="btn btn-primary" @onclick="Registrar">Registrarse</button>
+            <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/"))">Cancelar</button>
+        </div>
+
+        <p class="error-message">@mensaje</p>
+
+        <div class="login-link">
+            ¿Ya tienes una cuenta? <a href="/login">Inicia sesión</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string nombre = string.Empty;
+    private string codigoAcceso = string.Empty;
+    private string rol = string.Empty;
+    private string mensaje = string.Empty;
+
+    private async Task Registrar()
+    {
+        if (string.IsNullOrWhiteSpace(nombre) || string.IsNullOrWhiteSpace(codigoAcceso) || string.IsNullOrWhiteSpace(rol))
+        {
+            mensaje = "Todos los campos son obligatorios";
+            return;
+        }
+
+        // Validar fortaleza de contraseña
+        if (codigoAcceso.Length < 8)
+        {
+            mensaje = "La contraseña debe tener al menos 8 caracteres";
+            return;
+        }
+        var datos = new
+        {
+            nombre = nombre,
+            rol = rol,
+            codigoAcceso = codigoAcceso
+        };
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("http://localhost:5282/api/Auth/Registrar", datos);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                mensaje = errorContent?.Message ?? "Error desconocido";
+                return;
+            }
+
+            mensaje = "¡Registro exitoso! Redirigiendo...";
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/");
+        }
+        catch (HttpRequestException ex)
+        {
+            mensaje = "Error de conexión con el servidor";
+        }
+        catch (Exception ex)
+        {
+            mensaje = "Error inesperado";
+        }
+    }
+
+    public class ErrorResponse
+    {
+        public string Message { get; set; }
+        public int StatusCode { get; set; }
+        // Puedes agregar más propiedades según lo que devuelva tu API
+    }
+
+
+}
+
+<style>
+    :root {
+        --primary-color: #0056b3; /* Azul corporativo */
+        --primary-hover: #003d7a;
+        --secondary-color: #e31937; /* Rojo energético */
+        --secondary-hover: #b3142c;
+        --background-light: #f5f5f5; /* Gris claro */
+        --text-dark: #333333; /* Texto principal */
+        --border-color: #dddddd;
+        --success-color: #28a745;
+    }
+
+    body {
+        background-color: var(--background-light);
+        font-family: 'Segoe UI', Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        color: var(--text-dark);
+    }
+
+    .register-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .register-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        width: 100%;
+        max-width: 450px;
+    }
+
+    .logo-container {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .logo {
+        width: 120px;
+        height: auto;
+        margin-bottom: 10px;
+    }
+
+    .company-name {
+        color: var(--primary-color);
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+
+    .register-title {
+        text-align: center;
+        margin-bottom: 25px;
+        color: var(--text-dark);
+        font-weight: 500;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+    }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+
+    .input-field {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+    }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2);
+        }
+
+    select.input-field {
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 15px;
+    }
+
+    .button-container {
+        display: flex;
+        gap: 15px;
+        margin-top: 25px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+    .btn-secondary {
+        background-color: white;
+        color: var(--secondary-color);
+        border: 1px solid var(--secondary-color);
+    }
+
+        .btn-secondary:hover {
+            background-color: var(--secondary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+    .error-message {
+        color: var(--secondary-color);
+        text-align: center;
+        margin: 15px 0;
+        min-height: 20px;
+    }
+
+    .login-link {
+        text-align: center;
+        margin-top: 20px;
+        color: #666;
+    }
+
+        .login-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+            .login-link a:hover {
+                text-decoration: underline;
+            }
+
+    @@media (max-width: 480px) {
+        .register-card {
+            padding: 20px;
+        }
+
+        .button-container {
+            flex-direction: column;
+        }
+    }
+
+    /* Agregar esto al CSS */
+    .validation-message {
+        color: var(--secondary-color);
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+
+    .input-field:invalid {
+        border-color: var(--secondary-color);
+    }
+
+    /* Mejorar el contraste para accesibilidad */
+    .company-name {
+        color: var(--primary-color);
+        /* Añadir para mejor contraste */
+        text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
+</style>

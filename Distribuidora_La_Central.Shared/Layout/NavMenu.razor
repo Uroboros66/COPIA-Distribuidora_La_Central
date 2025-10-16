@@ -1,0 +1,186 @@
+﻿@inherits LayoutComponentBase
+@inject AppState AppState
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+<style>
+    /* Estilos del menú delgado */
+    .navbar {
+        background-color: #1A2E5A;
+        color: white;
+        height: 100vh;
+        width: 200px; /* Reducido de 280px */
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 1000;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .navbar-brand {
+        padding: 15px 10px; /* Más compacto */
+        font-size: 1rem; /* Tamaño de fuente reducido */
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        text-align: center; /* Centrado como en la imagen */
+    }
+
+    .nav-scrollable {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 0;
+    }
+
+    .menu-section {
+        padding: 8px 15px;
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.6);
+        text-transform: uppercase;
+        margin-top: 10px;
+    }
+
+    .nav-item {
+        margin: 2px 0;
+    }
+
+    .nav-link {
+        padding: 8px 15px;
+        font-size: 0.85rem;
+    }
+
+        .nav-link i {
+            width: 20px;
+            font-size: 0.9rem;
+            margin-right: 8px;
+        }
+
+    /* Contenido principal ajustado */
+    main.with-sidebar {
+        margin-left: 200px; /* Ajustado al nuevo ancho */
+        width: calc(100% - 200px);
+    }
+
+    /* Versión móvil */
+    @@media (max-width: 768px) {
+        .navbar {
+            width: 60px; /* Más delgado en móvil */
+        }
+
+        .navbar-brand span,
+        .nav-link span,
+        .menu-section {
+            display: none;
+        }
+
+        .nav-link {
+            justify-content: center;
+            padding: 10px 5px;
+        }
+
+            .nav-link i {
+                margin-right: 0;
+                font-size: 1rem;
+            }
+
+        main.with-sidebar {
+            margin-left: 60px;
+            width: calc(100% - 60px);
+        }
+    }
+</style>
+
+<!-- Menú de navegación -->
+<div class="navbar">
+    <div class="navbar-brand">
+        <span>Distribuidora La Central</span>
+    </div>
+
+    <div class="nav-scrollable">
+        <nav class="flex-column">
+            <div class="menu-section">INICIO</div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="home" Match="NavLinkMatch.All">
+                    <i class="fas fa-house"></i>
+                    <span>Home</span>
+                </NavLink>
+            </div>
+
+            @if (AppState?.Rol == "Administrador" || AppState?.Rol == "Vendedor")
+            {
+                <div class="menu-section">VENTAS</div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="factura">
+                        <i class="fas fa-file-invoice"></i>
+                        <span>Facturación</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="gestionclientes">
+                        <i class="fas fa-users"></i>
+                        <span>Clientes</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="Abonos">
+                        <i class="fas fa-money-check-alt"></i>
+                        <span>Abonos</span>
+                    </NavLink>
+                </div>
+            }
+
+            @if (AppState?.Rol == "Administrador")
+            {
+                <div class="menu-section">ADMINISTRACIÓN</div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="GestionCreditos">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Créditos</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="gestionproveedor">
+                        <i class="fas fa-handshake"></i> <!-- Icono de apretón de manos para Proveedores -->
+                        <span>Proveedores</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="gestioninventario">
+                        <i class="fas fa-boxes-stacked"></i>
+                        <span>Inventario</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="GestionCompras">
+                        <i class="fas fa-shopping-cart"></i> <!-- Icono de carrito para Compras -->
+                        <span>Compras</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="gestionusuarios">
+                        <i class="fas fa-user-cog"></i> <!-- Icono de usuario con engranaje para gestión -->
+                        <span>Usuario</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="TrasladoDTO">
+                        <i class="fas fa-truck-moving"></i> <!-- Icono de camión en movimiento para Traslado -->
+                        <span>Traslado</span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="Reportes">
+                        <i class="fas fa-table"></i> <!-- Icono de camión en movimiento para Traslado -->
+                        <span>Reportes</span>
+                    </NavLink>
+                </div>
+            }
+        </nav>
+    </div>
+</div>
+
+<!-- Contenido principal -->
+<main class="@((AppState?.IsLoggedIn == true) ? "with-sidebar" : "full-width")">
+    @Body
+</main>

@@ -1,0 +1,239 @@
+@page "/reporte-productos"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    :root {
+        --primary-color: #1976d2;
+        --secondary-color: #e3f2fd;
+        --accent-color: #0d47a1;
+        --text-color: #333;
+        --light-color: #fff;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .reporte-container {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .reporte-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    .reporte-title {
+        color: var(--primary-color);
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .search-container {
+        position: relative;
+        width: 100%;
+        margin: 15px 0;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        border-color: var(--primary-color);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    }
+
+    .download-button {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .download-button:hover {
+        background-color: var(--accent-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+    }
+
+    .table-container {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: var(--light-color);
+    }
+
+    .table thead {
+        background-color: var(--primary-color);
+        color: var(--light-color);
+    }
+
+    .table th {
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .table tbody tr:nth-child(even) {
+        background-color: var(--secondary-color);
+    }
+
+    .table tbody tr:hover {
+        background-color: #bbdefb;
+    }
+
+    .loading-message, .empty-message {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.2rem;
+        color: #666;
+    }
+
+    /* Responsive adjustments */
+    @@media (min-width: 768px) {
+        .search-container {
+            width: 50%;
+            margin: 0;
+        }
+
+        .reporte-header {
+            flex-wrap: nowrap;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .table th, .table td {
+            padding: 8px 10px;
+            font-size: 0.9rem;
+        }
+
+        .reporte-title {
+            font-size: 1.5rem;
+        }
+
+        .download-button {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<div class="reporte-container">
+    <div class="reporte-header">
+        <h3 class="reporte-title">Reporte de Productos</h3>
+
+        <div class="search-container">
+            <input @bind="filtro" placeholder="Buscar..." class="search-input" />
+        </div>
+
+        <button class="download-button" @onclick="DescargarPdf">
+            <i class="fas fa-file-pdf"></i> Descargar PDF
+        </button>
+    </div>
+
+    @if (itemsFiltrados == null)
+    {
+        <div class="loading-message">
+            <p>Cargando datos...</p>
+        </div>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <div class="empty-message">
+            <p>No se encontraron datos.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(Producto).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(Producto).GetProperties())
+                            {
+                                <td>@prop.GetValue(item)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Producto> items = new();
+    private List<CategoriaProducto> categoriaProductos = new();
+
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<Producto>>("api/Producto/GetAllProductos");
+    }
+
+    private List<Producto> itemsFiltrados =>
+     string.IsNullOrWhiteSpace(filtro)
+     ? items
+     : items.Where(x => x.codigoProducto.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.descripcion.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.cantidad.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.categoria.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.descuento.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.costo.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.bodega.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.idProveedor.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("api/Producto/DescargarReporteProductos").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}

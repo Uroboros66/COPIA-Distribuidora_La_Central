@@ -1,0 +1,666 @@
+﻿@page "/gestionproveedor"
+@inject HttpClient Http
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<div class="gestor-proveedores">
+    <h3 class="titulo-principal">Gestión de Proveedores</h3>
+
+    <div class="contenedor-principal">
+        <!-- Formulario de proveedor -->
+        <div class="panel-formulario">
+            <div class="encabezado-panel">
+                <h4>@(modoEditar ? "Editar Proveedor" : "Nuevo Proveedor")</h4>
+            </div>
+
+            <div class="formulario">
+                <div class="form-grid">
+                    <div class="grupo-formulario">
+                        <label>Nombre:</label>
+                        <input type="text" @bind="nuevoProveedor.nombre" placeholder="Nombre del proveedor" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Razón Social:</label>
+                        <input type="text" @bind="nuevoProveedor.razonSocial" placeholder="Razón social" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Contacto:</label>
+                        <input type="text" @bind="nuevoProveedor.contacto" placeholder="Nombre del contacto" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Teléfono:</label>
+                        <input type="text" @bind="nuevoProveedor.telefono" placeholder="Número de teléfono" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Fecha de Ingreso:</label>
+                        <input type="date" @bind="nuevoProveedor.diaIngreso" format-value="yyyy-MM-dd" />
+                    </div>
+                </div>
+
+                <div class="acciones-formulario">
+                    <button class="btn-guardar" @onclick="GuardarProveedor">
+                        <i class="icono-guardar"></i> @(modoEditar ? "Actualizar" : "Guardar")
+                    </button>
+                    @if (modoEditar)
+                    {
+                        <button class="btn-cancelar" @onclick="CancelarEdicion">
+                            <i class="icono-cancelar"></i> Cancelar
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de proveedores -->
+        <div class="panel-lista">
+            <div class="encabezado-panel">
+                <h4>Lista de Proveedores</h4>
+                <div class="busqueda">
+                    <input type="text" placeholder="Buscar proveedores..." @bind="filtroBusqueda"
+                           @oninput="(e) => { filtroBusqueda = e.Value.ToString(); FiltrarProveedores(); }" />
+                    <i class="icono-buscar"></i>
+                </div>
+                <button class="btn-nuevo" @onclick="NuevoCliente">+ Nuevo</button>
+            </div>
+
+            <div class="contenedor-tabla">
+                @if (proveedoresFiltrados?.Any() == true)
+                {
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Razón Social</th>
+                                <th>Contacto</th>
+                                <th>Teléfono</th>
+                                <th>Fecha Ingreso</th>
+                                <th class="acciones-columna">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var proveedor in proveedoresFiltrados)
+                            {
+                                <tr>
+                                    <td data-label="ID">@proveedor.idProveedor</td>
+                                    <td data-label="Nombre">@proveedor.nombre</td>
+                                    <td data-label="Razón Social">@proveedor.razonSocial</td>
+                                    <td data-label="Contacto">@proveedor.contacto</td>
+                                    <td data-label="Teléfono">@proveedor.telefono</td>
+                                    <td data-label="Fecha Ingreso">@proveedor.diaIngreso.ToString("dd/MM/yyyy")</td>
+                                    <td class="acciones" data-label="Acciones">
+                                        <button class="btn-editar" @onclick="() => EditarProveedor(proveedor)" title="Editar">
+                                            <i class="icono-editar"></i>
+                                        </button>
+                                        <button class="btn-eliminar" @onclick="() => EliminarProveedor(proveedor.idProveedor)" title="Eliminar">
+                                            <i class="icono-eliminar"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="sin-resultados">
+                        <i class="icono-proveedor"></i>
+                        <p>No se encontraron proveedores</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Estilos base optimizados para móvil */
+    .gestor-proveedores {
+        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+        padding: 10px;
+        background-color: #f5f7fa;
+        min-height: 100vh;
+        box-sizing: border-box;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    .titulo-principal {
+        color: #1A2E5A;
+        margin-bottom: 15px;
+        font-weight: 600;
+        border-bottom: 2px solid #E30613;
+        padding-bottom: 6px;
+        display: inline-block;
+        font-size: 1.3rem;
+    }
+
+    .contenedor-principal {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .panel-lista, .panel-formulario {
+        width: 100%;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .encabezado-panel {
+        background-color: #1A2E5A;
+        color: white;
+        padding: 12px 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+        .encabezado-panel h4 {
+            margin: 0;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+    .busqueda {
+        position: relative;
+        width: 100%;
+    }
+
+        .busqueda input {
+            width: 100%;
+            padding: 10px 30px 10px 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+            box-sizing: border-box;
+            min-height: 44px;
+            -webkit-appearance: none;
+        }
+
+    .icono-buscar {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+    }
+
+    .contenedor-tabla {
+        padding: 10px;
+        max-height: 500px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .formulario {
+        padding: 15px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .grupo-formulario {
+        margin-bottom: 12px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #1A2E5A;
+        font-size: 14px;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+        min-height: 44px;
+        -webkit-appearance: none;
+    }
+
+    .acciones-formulario {
+        display: flex;
+        gap: 8px;
+        margin-top: 15px;
+    }
+
+    /* Tabla optimizada para móvil */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    th {
+        background-color: #f8f9fa;
+        color: #1A2E5A;
+        padding: 12px 8px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #e9ecef;
+        position: sticky;
+        top: 0;
+    }
+
+    td {
+        padding: 12px 8px;
+        border-bottom: 1px solid #e9ecef;
+        color: #495057;
+        word-break: break-word;
+    }
+
+    .acciones {
+        display: flex;
+        gap: 5px;
+        flex-wrap: nowrap;
+    }
+
+        .acciones button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            min-height: 36px;
+        }
+
+    .btn-editar {
+        color: #1A2E5A;
+    }
+
+        .btn-editar:hover {
+            background-color: rgba(26, 46, 90, 0.1);
+        }
+
+    .btn-eliminar {
+        color: #E30613;
+    }
+
+        .btn-eliminar:hover {
+            background-color: rgba(227, 6, 19, 0.1);
+        }
+
+    .icono-editar, .icono-eliminar {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .sin-resultados {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 0;
+        color: #6c757d;
+    }
+
+    .icono-proveedor {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 10px;
+    }
+
+    /* Botones optimizados */
+    .btn-guardar, .btn-cancelar {
+        padding: 10px 15px;
+        font-size: 14px;
+        border: none;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+    }
+
+    .btn-guardar {
+        background-color: #1A2E5A;
+        color: white;
+    }
+
+        .btn-guardar:hover {
+            background-color: #142445;
+        }
+
+    .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+    }
+
+        .btn-cancelar:hover {
+            background-color: #5a6268;
+        }
+
+    .icono-guardar, .icono-cancelar {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    /* Media queries para pantallas más grandes */
+    @@media (min-width: 600px) {
+        .form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (min-width: 768px) {
+        .contenedor-principal {
+            flex-direction: row;
+        }
+
+        .panel-formulario {
+            flex: 0 0 400px;
+        }
+
+        .panel-lista {
+            flex: 1;
+        }
+    }
+
+    @@media (min-width: 992px) {
+        .form-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    /* Estilos para tabla en móviles */
+    @@media (max-width: 600px) {
+        table, thead, tbody, th, td, tr {
+            display: block;
+        }
+
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+        tr {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        td {
+            border: none;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            padding-left: 50%;
+        }
+
+            td:before {
+                position: absolute;
+                left: 8px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                content: attr(data-label);
+                font-weight: bold;
+                color: #1A2E5A;
+            }
+
+        .acciones {
+            justify-content: flex-end;
+            padding-left: 0;
+        }
+
+            .acciones:before {
+                content: none;
+            }
+    }
+
+    /* Iconos SVG embebidos */
+    .icono-buscar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A2E5A'%3E%3Cpath d='M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+    }
+
+    .icono-editar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A2E5A'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E");
+    }
+
+    .icono-eliminar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23E30613'%3E%3Cpath d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/%3E%3C/svg%3E");
+    }
+
+    .icono-proveedor {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236c757d'%3E%3Cpath d='M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z'/%3E%3C/svg%3E");
+    }
+
+    .icono-guardar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z'/%3E%3C/svg%3E");
+    }
+
+    .icono-cancelar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    }
+
+
+    .btn-nuevo {
+        background-color: #E30613;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+        .btn-nuevo:hover {
+            background-color: #c00510;
+        }
+
+    .btn-guardar {
+        background-color: #1A2E5A;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+</style>
+
+@code {
+    List<Proveedor> proveedores = new();
+    List<Proveedor> proveedoresFiltrados = new();
+    Proveedor nuevoProveedor = new();
+    string filtroBusqueda = "";
+    bool modoEditar = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedores();
+    }
+
+    async Task CargarProveedores()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<Proveedor>>("api/Proveedor/obtener-todos");
+            if (response is not null)
+            {
+                proveedores = response;
+                FiltrarProveedores();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error al cargar proveedores: " + ex.Message);
+        }
+    }
+
+    void FiltrarProveedores()
+    {
+        if (string.IsNullOrWhiteSpace(filtroBusqueda))
+        {
+            proveedoresFiltrados = proveedores.ToList();
+        }
+        else
+        {
+            var termino = filtroBusqueda.ToLower();
+            proveedoresFiltrados = proveedores.Where(p =>
+                p.nombre.ToLower().Contains(termino) ||
+                p.razonSocial.ToLower().Contains(termino) ||
+                p.contacto.ToLower().Contains(termino) ||
+                p.telefono.ToLower().Contains(termino) ||
+                p.idProveedor.ToString().Contains(termino)
+            ).ToList();
+        }
+    }
+
+    void NuevoCliente()
+    {
+        nuevoProveedor = new Proveedor(); // Limpia el formulario
+        modoEditar = false;           // Establece el modo de creación (no edición)
+
+        // Si tienes un usuario por defecto para "creado_por", puedes asignarlo aquí
+        // nuevoCliente.creado_por = usuarioActual.idUsuario;
+
+        // También puedes hacer scroll automático al formulario si es necesario
+        // await JSRuntime.InvokeVoidAsync("scrollToForm");
+    }
+    Dictionary<string, string> erroresValidacion = new();
+
+    async Task GuardarProveedor()
+    {
+
+
+        erroresValidacion.Clear();
+
+        // Validar campos
+        if (string.IsNullOrWhiteSpace(nuevoProveedor.nombre))
+            erroresValidacion["nombre"] = "El nombre es requerido";
+        else if (nuevoProveedor.nombre.Length > 100)
+            erroresValidacion["nombre"] = "El nombre no puede exceder 100 caracteres";
+
+        if (string.IsNullOrWhiteSpace(nuevoProveedor.razonSocial))
+            erroresValidacion["razonSocial"] = "La razón social es requerida";
+        else if (nuevoProveedor.razonSocial.Length > 150)
+            erroresValidacion["razonSocial"] = "La razón social no puede exceder 150 caracteres";
+
+        if (string.IsNullOrWhiteSpace(nuevoProveedor.contacto))
+            erroresValidacion["contacto"] = "El contacto es requerido";
+        else if (nuevoProveedor.contacto.Length > 100)
+            erroresValidacion["contacto"] = "El contacto no puede exceder 100 caracteres";
+
+        if (string.IsNullOrWhiteSpace(nuevoProveedor.telefono))
+            erroresValidacion["telefono"] = "El teléfono es requerido";
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(nuevoProveedor.telefono, @"^[0-9\s\-\+\(\)]{8,20}$"))
+            erroresValidacion["telefono"] = "Formato de teléfono inválido";
+
+        // Validar fecha (no puede ser en el futuro)
+        if (nuevoProveedor.diaIngreso > DateTime.Now)
+            erroresValidacion["diaIngreso"] = "La fecha no puede ser futura";
+
+        // Si hay errores, no proceder con el guardado
+        if (erroresValidacion.Any())
+        {
+            StateHasChanged(); // Forzar actualización de la UI
+            return;
+        }
+        try
+        {
+            if (modoEditar)
+            {
+                var response = await Http.PutAsJsonAsync($"api/Proveedor/ActualizarProveedor/{nuevoProveedor.idProveedor}", nuevoProveedor);
+                if (response.IsSuccessStatusCode)
+                {
+                    modoEditar = false;
+                    nuevoProveedor = new();
+                    await CargarProveedores();
+                }
+            }
+            else
+            {
+                var response = await Http.PostAsJsonAsync("api/Proveedor/registrar", nuevoProveedor);
+                if (response.IsSuccessStatusCode)
+                {
+                    nuevoProveedor = new();
+                    await CargarProveedores();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error al guardar proveedor: " + ex.Message);
+        }
+    }
+
+    void EditarProveedor(Proveedor proveedor)
+    {
+        nuevoProveedor = new Proveedor
+            {
+                idProveedor = proveedor.idProveedor,
+                nombre = proveedor.nombre,
+                razonSocial = proveedor.razonSocial,
+                contacto = proveedor.contacto,
+                telefono = proveedor.telefono,
+                diaIngreso = proveedor.diaIngreso
+            };
+        modoEditar = true;
+    }
+
+    void CancelarEdicion()
+    {
+        nuevoProveedor = new();
+        modoEditar = false;
+    }
+
+    async Task EliminarProveedor(int idProveedor)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Proveedor/EliminarProveedor/{idProveedor}");
+            if (response.IsSuccessStatusCode)
+            {
+                await CargarProveedores();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error al eliminar proveedor: " + ex.Message);
+        }
+    }
+
+    public class Proveedor
+    {
+        public int idProveedor { get; set; }
+        public string nombre { get; set; } = string.Empty;
+        public string razonSocial { get; set; } = string.Empty;
+        public string contacto { get; set; } = string.Empty;
+        public string telefono { get; set; } = string.Empty;
+        public DateTime diaIngreso { get; set; } = DateTime.Now;
+    }
+}

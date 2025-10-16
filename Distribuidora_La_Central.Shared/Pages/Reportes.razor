@@ -1,0 +1,321 @@
+﻿@page "/Reportes"
+@inject NavigationManager Navigation
+
+<style>
+    .report-card {
+        transition: all 0.3s ease;
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        height: 100%;
+    }
+
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 119, 182, 0.2);
+        }
+
+        .report-card .card-body {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9f5ff 100%);
+        }
+
+        .report-card .card-title {
+            color: #0077b6;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .report-card .card-icon {
+            font-size: 2rem;
+            color: #0077b6;
+            margin-bottom: 1rem;
+        }
+
+    .btn-report {
+        background-color: #0077b6;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s;
+    }
+
+        .btn-report:hover {
+            background-color: #005b8c;
+            color: white;
+        }
+
+    .page-header {
+        background: linear-gradient(90deg, #0077b6 0%, #00a6fb 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 4px 12px rgba(0, 119, 182, 0.2);
+    }
+
+    .section-title {
+        color: #0077b6;
+        position: relative;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background-color: #0077b6;
+        }
+</style>
+
+<div class="page-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1><i class="fas fa-chart-line me-3"></i> Módulo de Reportes</h1>
+                <p class="lead mb-0">Acceda a todos los reportes del sistema</p>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="section-title">Reportes Generales</h3>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Reporte 1 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h5 class="card-title">Clientes</h5>
+                    <p class="card-text">Listado completo de clientes registrados</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteClientes">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 2 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h5 class="card-title">Productos</h5>
+                    <p class="card-text">Inventario y detalles de productos</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteProductos">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 3 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <h5 class="card-title">Proveedores</h5>
+                    <p class="card-text">Información de proveedores</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteProveedores">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 4 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <h5 class="card-title">Facturas</h5>
+                    <p class="card-text">Historial de facturas emitidas</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteFacturas">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 5 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-warehouse"></i>
+                    </div>
+                    <h5 class="card-title">Bodegas</h5>
+                    <p class="card-text">Gestión de bodegas y ubicaciones</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteBodegas">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 6 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h5 class="card-title">Inventario</h5>
+                    <p class="card-text">Estado actual del inventario</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteInventario">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 7 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <h5 class="card-title">Compras</h5>
+                    <p class="card-text">Historial de compras</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteCompras">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 8 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h5 class="card-title">Traslados</h5>
+                    <p class="card-text">Movimientos entre bodegas</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteTraslado">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 9 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                    <h5 class="card-title">Usuarios</h5>
+                    <p class="card-text">Administración de usuarios</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteUsuarios">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 10 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h5 class="card-title">Categorías</h5>
+                    <p class="card-text">Clasificación de productos</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteCategorias">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 11 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <h5 class="card-title">Crédito</h5>
+                    <p class="card-text">Estado de créditos</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteCredito">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 12 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h5 class="card-title">Deudas Pendientes</h5>
+                    <p class="card-text">Seguimiento de deudas</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteDeudasPendientes">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reporte 13 -->
+        <div class="col-md-4">
+            <div class="report-card card">
+                <div class="card-body text-center">
+                    <div class="card-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <h5 class="card-title">Abonos</h5>
+                    <p class="card-text">Registro de abonos</p>
+                    <button class="btn btn-report" @onclick="RedirigirAReporteAbonos">
+                        Ver Reporte <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void RedirigirAReporteAbonos() => Navigation.NavigateTo("/reporte-abonos");
+    private void RedirigirAReporteBodegas() => Navigation.NavigateTo("/reporte-bodegas");
+    private void RedirigirAReporteCategorias() => Navigation.NavigateTo("/reporte-categoriaproductos");
+    private void RedirigirAReporteClientes() => Navigation.NavigateTo("/reporte-clientes");
+    private void RedirigirAReporteCompras() => Navigation.NavigateTo("/reporte-compras");
+    private void RedirigirAReporteCredito() => Navigation.NavigateTo("/reporte-creditos");
+    private void RedirigirAReporteDeudasPendientes() => Navigation.NavigateTo("/reporte-DeudasPendientes");
+    private void RedirigirAReporteFacturas() => Navigation.NavigateTo("/reporte-facturas");
+    private void RedirigirAReporteInventario() => Navigation.NavigateTo("/reporte-Inventario");
+    private void RedirigirAReporteProductos() => Navigation.NavigateTo("/reporte-productos");
+    private void RedirigirAReporteProveedores() => Navigation.NavigateTo("/reporte-proveedores");
+    private void RedirigirAReporteTraslado() => Navigation.NavigateTo("/reporte-traslados");
+    private void RedirigirAReporteUsuarios() => Navigation.NavigateTo("/reporte-usuarios");
+}

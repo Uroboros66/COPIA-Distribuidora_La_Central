@@ -1,0 +1,47 @@
+﻿@inherits LayoutComponentBase
+@inject AppState AppState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="page">
+    @if (AppState.IsLoggedIn)
+    {
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+    }
+
+    <main class="@(AppState.IsLoggedIn ? "with-sidebar" : "full-width")">
+        @if (AppState.IsLoggedIn)
+        {
+            <div class="top-row px-4 auth-info">
+                <span>Usuario: @AppState.Usuario | Rol: @AppState.Rol</span>
+                <button class="btn btn-sm btn-danger" @onclick="CerrarSesion">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </button>
+            </div>
+        }
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += StateHasChanged;
+    }
+
+    private void CerrarSesion()
+    {
+        AppState.Logout();
+        Navigation.NavigateTo("/");
+    }
+
+    public void Dispose()
+    {
+        AppState.OnChange -= StateHasChanged;
+    }
+}

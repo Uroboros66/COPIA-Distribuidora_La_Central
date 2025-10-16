@@ -1,0 +1,364 @@
+﻿@page "/home"
+
+@{
+    var backgroundColor = "#1A2E5A";  // Azul Oscuro Corporativo
+    var primaryColor = "#E30613";     // Rojo Energético
+    var secondaryColor = "#FFC72C";   // Amarillo Corporativo (accent)
+    var textColor = "#FFFFFF";        // Blanco
+    var lightText = "rgba(255,255,255,0.8)";
+}
+
+<style>
+    /* Variables CSS */
+    :root {
+        --bg-color: @backgroundColor;
+        --primary-color: @primaryColor;
+        --secondary-color: @secondaryColor;
+        --text-color: @textColor;
+        --light-text: @lightText;
+        --card-bg: rgba(255, 255, 255, 0.1);
+        --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    /* Reset y estilos base */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        font-family: 'Roboto', sans-serif;
+        color: var(--text-color);
+        line-height: 1.6;
+        background-image: linear-gradient(to bottom, var(--bg-color), #0F1F3D);
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+
+    /* Estructura principal */
+    .dashboard {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 15px;
+        width: 100%;
+    }
+
+    /* Header */
+    .header {
+        display: flex;
+        flex-direction: column;
+        padding: 15px 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        width: 100%;
+    }
+
+    .brand-name {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-color);
+    }
+
+    .brand-tagline {
+        font-size: 0.8rem;
+        color: var(--light-text);
+        margin-top: 3px;
+    }
+
+    .user-menu {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    .user-greeting {
+        text-align: left;
+    }
+
+    .welcome-text {
+        font-size: 0.8rem;
+        color: var(--light-text);
+    }
+
+    .username {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-top: 2px;
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    /* Contenido principal */
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+    }
+
+    .content-area {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Tarjetas de estadísticas */
+    .stats-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+        width: 100%;
+    }
+
+    .stat-title {
+        font-size: 0.85rem;
+        color: var(--light-text);
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .stat-change {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.8rem;
+    }
+
+    .positive {
+        color: #4CAF50;
+    }
+
+    .negative {
+        color: #F44336;
+    }
+
+    /* Tarjeta principal */
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .card-header {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 15px;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    /* Botones */
+    .btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 500;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: var(--text-color);
+    }
+
+    .btn-secondary {
+        background-color: rgba(255,255,255,0.1);
+        color: var(--text-color);
+    }
+
+    .btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Banner de bienvenida */
+    .welcome-banner {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 15px 0;
+    }
+
+    .welcome-title {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+        color: var(--text-color);
+    }
+
+    .welcome-subtitle {
+        font-size: 1rem;
+        color: var(--light-text);
+        margin-bottom: 20px;
+    }
+
+    .dashboard-button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        background-color: var(--primary-color);
+        color: var(--text-color);
+        border: none;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Media Queries para pantallas más grandes */
+    @@media (min-width: 600px) {
+        .header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-menu {
+            margin-top: 0;
+            width: auto;
+        }
+
+        .stats-grid {
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1 1 calc(50% - 15px);
+        }
+
+        .card-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+
+    @@media (min-width: 900px) {
+        .stat-card {
+            flex: 1 1 calc(33.333% - 15px);
+        }
+    }
+</style>
+
+<div class="dashboard">
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <div>
+                <div class="brand-name">DISTRIBUIDORA LACENTRAL</div>
+                <div class="brand-tagline">Soluciones logísticas de excelencia</div>
+            </div>
+        </div>
+
+        <div class="user-menu">
+            
+        </div>
+    </header>
+
+    <!-- Contenido principal -->
+    <div class="main-content">
+        <div class="content-area">
+            <!-- Estadísticas -->
+            
+
+                <div class="stat-card">
+                    <div class="stat-title">Inventario</div>
+                    <div class="stat-value">1,248</div>
+                    <div class="stat-change negative">
+                        <svg viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7,10L12,15L17,10H7Z" />
+                        </svg>
+                        -5% en stock
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-title">Clientes Nuevos</div>
+                    <div class="stat-value">8</div>
+                    <div class="stat-change positive">
+                        <svg viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7,15L12,10L17,15H7Z" />
+                        </svg>
+                        +33% este mes
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta principal -->
+            <div class="main-card">
+                <div class="card-header">
+                    <h2 class="card-title">Resumen Ejecutivo</h2>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z" />
+                            </svg>
+                            Opciones
+                        </button>
+                        <button class="btn btn-primary">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                            </svg>
+                            Exportar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="welcome-banner">
+                    <h1 class="welcome-title">Bienvenido, @nombreUsuario</h1>
+                    <p class="welcome-subtitle">
+                        Has iniciado sesión correctamente en el sistema de gestión de Distribuidora LaCentral.
+                        Desde aquí podrás administrar inventarios, pedidos y clientes de manera eficiente.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@code {
+    private string nombreUsuario = "Administrador";
+    
+}

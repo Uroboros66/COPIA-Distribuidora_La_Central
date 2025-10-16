@@ -1,0 +1,284 @@
+@page "/reporte-compras"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    .reporte-compras-container {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f9fc;
+    }
+
+    .reporte-header {
+        color: #2c3e50;
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #1e88e5;
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+
+    .search-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 25px;
+        align-items: center;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 250px;
+        padding: 12px 18px;
+        border: 1px solid #b0bec5;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        background-color: white;
+    }
+
+        .search-input:focus {
+            border-color: #1e88e5;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+        }
+
+    .download-button {
+        background-color: #1e88e5;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+        .download-button:hover {
+            background-color: #1565c0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+    .table-responsive {
+        overflow-x: auto;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+        .table th {
+            background-color: #1e88e5;
+            color: white;
+            padding: 14px 16px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #37474f;
+        }
+
+        .table tr:nth-child(even) {
+            background-color: #f5fafe;
+        }
+
+        .table tr:hover {
+            background-color: #e3f2fd;
+        }
+
+    .status-message {
+        text-align: center;
+        padding: 30px;
+        color: #546e7a;
+        font-size: 18px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-top: 20px;
+    }
+
+    @@media (max-width: 992px) {
+        .reporte-compras-container {
+            padding: 15px;
+        }
+
+        .reporte-header {
+            font-size: 1.5rem;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .search-container {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        .download-button {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .table th, .table td {
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .reporte-compras-container {
+            padding: 10px;
+        }
+
+        .reporte-header {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            padding: 10px 15px;
+        }
+
+        .table-responsive {
+            border-radius: 6px;
+        }
+
+        .table {
+            display: block;
+        }
+
+            .table thead {
+                display: none;
+            }
+
+            .table tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 10px;
+            }
+
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 10px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+
+                .table td::before {
+                    content: attr(data-label);
+                    font-weight: 600;
+                    margin-right: 15px;
+                    color: #1e88e5;
+                    flex: 0 0 120px;
+                    text-transform: capitalize;
+                }
+
+        .status-message {
+            padding: 20px;
+            font-size: 16px;
+        }
+    }
+</style>
+
+<div class="reporte-compras-container">
+    <h3 class="reporte-header">Reporte de Compras</h3>
+
+    <div class="search-container">
+        <input @bind="filtro" placeholder="Buscar por cualquier campo..." class="search-input" />
+        <button class="download-button" @onclick="DescargarPdf">
+            <i class="fas fa-file-pdf"></i> Descargar PDF
+        </button>
+    </div>
+
+    @if (itemsFiltrados == null)
+    {
+        <div class="status-message">
+            <p>Cargando datos...</p>
+        </div>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <div class="status-message">
+            <p>No se encontraron datos.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(Compra).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(Compra).GetProperties())
+                            {
+                                <td data-label="@prop.Name">@prop.GetValue(item)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Compra> items = new();
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<Compra>>("api/Compra/GetAllCompras");
+    }
+
+    private List<Compra> itemsFiltrados =>
+      string.IsNullOrWhiteSpace(filtro)
+      ? items
+      : items.Where(x => x.idCompra.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                        x.idProveedor.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                        x.fechaCompra.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                        x.TotalCompra.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                        x.Estado.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                        (x.FechaPago.HasValue && x.FechaPago.Value.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase)) ||
+                        x.MetodoPago.Contains(filtro, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("/api/Compra/DescargarReporteCompras").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}

@@ -1,0 +1,255 @@
+@page "/reporte-proveedores"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    :root {
+        --primary-blue: #1565C0;
+        --dark-blue: #0D47A1;
+        --light-blue: #E3F2FD;
+        --white: #FFFFFF;
+        --light-gray: #F5F5F5;
+        --medium-gray: #E0E0E0;
+        --dark-gray: #212121;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        --border-radius: 6px;
+    }
+
+    .suppliers-report {
+        font-family: 'Roboto', 'Segoe UI', sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        color: var(--dark-gray);
+    }
+
+    .report-header {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--primary-blue);
+    }
+
+    .report-title {
+        color: var(--primary-blue);
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .report-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 10px 16px;
+        border: 1px solid var(--medium-gray);
+        border-radius: var(--border-radius);
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+        .search-input:focus {
+            border-color: var(--primary-blue);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.2);
+        }
+
+    .pdf-btn {
+        background-color: var(--primary-blue);
+        color: var(--white);
+        border: none;
+        padding: 10px 20px;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow-sm);
+    }
+
+        .pdf-btn:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+    .table-container {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .suppliers-table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: var(--white);
+    }
+
+        .suppliers-table thead {
+            background-color: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .suppliers-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 500;
+            text-transform: capitalize;
+            font-size: 0.95rem;
+        }
+
+        .suppliers-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--medium-gray);
+            font-size: 0.9rem;
+        }
+
+        .suppliers-table tbody tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+
+        .suppliers-table tbody tr:hover {
+            background-color: var(--light-blue);
+        }
+
+    .status-message {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.1rem;
+        color: #666;
+        background-color: var(--light-gray);
+        border-radius: var(--border-radius);
+    }
+
+    /* Responsive adjustments */
+    @@media (min-width: 768px) {
+        .report-header
+
+    {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .report-tools {
+        flex-wrap: nowrap;
+    }
+
+    }
+
+    @@media (max-width: 600px) {
+        .suppliers-table th, .suppliers-table td
+
+    {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    .report-title {
+        font-size: 1.5rem;
+    }
+
+    .pdf-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+
+    .search-input {
+        min-width: 100%;
+    }
+
+    }</style>
+
+<div class="suppliers-report">
+    <div class="report-header">
+        <h3 class="report-title">Reporte de Proveedores</h3>
+
+        <div class="report-tools">
+            <input @bind="filtro" placeholder="Buscar proveedor..." class="search-input" />
+            <button class="pdf-btn" @onclick="DescargarPdf">
+                <i class="fas fa-file-pdf"></i> Descargar PDF
+            </button>
+        </div>
+    </div>
+
+    @if (itemsFiltrados == null)
+    {
+        <div class="status-message">
+            <p>Cargando datos de proveedores...</p>
+        </div>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <div class="status-message">
+            <p>No se encontraron proveedores.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-container">
+            <table class="suppliers-table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(Proveedor).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(Proveedor).GetProperties())
+                            {
+                                <td>@prop.GetValue(item)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Proveedor> items = new();
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<Proveedor>>("api/Proveedor/obtener-todos");
+    }
+
+    private List<Proveedor> itemsFiltrados =>
+     string.IsNullOrWhiteSpace(filtro)
+     ? items
+     : items.Where(x => x.idProveedor.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.nombre.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.razonSocial.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.contacto.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.telefono.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                       x.diaIngreso.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase)).ToList();
+
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("/api/Proveedor/DescargarReporteProveedores").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}

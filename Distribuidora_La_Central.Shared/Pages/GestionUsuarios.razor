@@ -1,0 +1,626 @@
+﻿@page "/gestionusuarios"
+@inject HttpClient Http
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<div class="gestor-usuarios">
+    <h3 class="titulo-principal">Gestión de Usuarios</h3>
+
+    <div class="contenedor-principal">
+        <!-- Lista de usuarios -->
+        <div class="panel-lista">
+            <div class="encabezado-panel">
+                <h4>Lista de Usuarios</h4>
+                <div class="busqueda">
+                    <input type="text" placeholder="Buscar usuarios..." @bind="filtroBusqueda"
+                           @oninput="(e) => { filtroBusqueda = e.Value.ToString();  FiltrarClientes(); }" />
+                    <i class="icono-buscar"></i>
+                </div>
+                <button class="btn-nuevo" @onclick="NuevoUsuario">+ Nuevo</button>
+            </div>
+
+            <div class="contenedor-tabla">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Rol</th>
+                            <th class="acciones-columna">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var usuario in clientesFiltrados)
+                        {
+                            <tr>
+                                <td>@usuario.idUsuario</td>
+                                <td>@usuario.nombre</td>
+                                <td><span class="badge-rol @usuario.rol.ToLower()">@usuario.rol</span></td>
+                                <button class="btn-editar" @onclick="() => EditarUsuario(usuario)" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-eliminar" @onclick="() => EliminarUsuario(usuario.idUsuario)" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="panel-formulario">
+            <div class="encabezado-panel">
+                <h4>@((modoEditar ? "Editar Usuario" : "Crear Nuevo Usuario"))</h4>
+            </div>
+
+            <div class="formulario">
+                <div class="grupo-formulario">
+                    <label>Nombre:</label>
+                    <input type="text" @bind="usuarioForm.nombre" placeholder="Nombre completo" />
+                </div>
+
+                <div class="grupo-formulario">
+                    <label>Contraseña:</label>
+                    <input type="password" @bind="usuarioForm.codigoAcceso" placeholder="••••••••" />
+                </div>
+
+                <div class="grupo-formulario">
+                    <label>Rol:</label>
+                    <select @bind="usuarioForm.rol">
+                        <option disabled selected value="">Seleccione el rol</option>
+                        <option>Administrador</option>
+                        <option>Vendedor</option>
+                    </select>
+                </div>
+
+                <div class="acciones-formulario">
+                    <button class="btn-guardar" @onclick="Guardar">
+                        <i class="icono-guardar"></i> @((modoEditar ? "Actualizar" : "Guardar"))
+                    </button>
+                    <button class="btn-cancelar" @onclick="Cancelar">
+                        <i class="icono-cancelar"></i> Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Estilos base (igual que tu versión original) */
+    .gestor-usuarios {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        padding: 20px;
+        background-color: #f5f7fa;
+        min-height: 100vh;
+    }
+
+    .titulo-principal {
+        color: #1A2E5A;
+        margin-bottom: 25px;
+        font-weight: 600;
+        border-bottom: 2px solid #E30613;
+        padding-bottom: 8px;
+        display: inline-block;
+    }
+
+    .contenedor-principal {
+        display: flex;
+        gap: 25px;
+    }
+
+    .panel-lista, .panel-formulario {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .panel-lista {
+        flex: 2;
+    }
+
+    .panel-formulario {
+        flex: 1;
+        min-width: 350px;
+    }
+
+    .encabezado-panel {
+        background-color: #1A2E5A;
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .encabezado-panel h4 {
+            margin: 0;
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+    .contenedor-tabla {
+        padding: 15px;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    th {
+        background-color: #f8f9fa;
+        color: #1A2E5A;
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e9ecef;
+        color: #495057;
+    }
+
+    tr:not(.seleccionado):hover {
+        background-color: #f8f9fa;
+        cursor: pointer;
+    }
+
+    .seleccionado {
+        background-color: #e6f0ff;
+    }
+
+    .badge-rol {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+        .badge-rol.administrador {
+            background-color: #E30613;
+            color: white;
+        }
+
+        .badge-rol.vendedor {
+            background-color: #4a7856;
+            color: white;
+        }
+
+    .formulario {
+        padding: 20px;
+    }
+
+    .grupo-formulario {
+        margin-bottom: 18px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #1A2E5A;
+        font-size: 14px;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+    }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #1A2E5A;
+            box-shadow: 0 0 0 2px rgba(26, 46, 90, 0.2);
+        }
+
+    .acciones-formulario {
+        display: flex;
+        gap: 10px;
+        margin-top: 25px;
+    }
+
+    .btn-nuevo {
+        background-color: #E30613;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+        .btn-nuevo:hover {
+            background-color: #c00510;
+        }
+
+    .btn-guardar {
+        background-color: #1A2E5A;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-guardar:hover {
+            background-color: #142445;
+        }
+
+    .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .btn-cancelar:hover {
+            background-color: #5a6268;
+        }
+
+    .icono-guardar, .icono-cancelar {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .icono-guardar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z'/%3E%3C/svg%3E");
+    }
+
+    .icono-cancelar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    }
+
+    /* Correcciones específicas para móvil */
+    @@media (max-width: 768px) {
+        .gestor-usuarios {
+            padding: 15px;
+        }
+
+        .contenedor-principal {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-lista, .panel-formulario {
+            width: 100%;
+            min-width: 100%;
+        }
+
+        .panel-formulario {
+            margin-top: 0;
+        }
+
+        .formulario {
+            padding: 15px;
+        }
+
+        .encabezado-panel {
+            padding: 12px 15px;
+        }
+
+        .contenedor-tabla {
+            padding: 10px;
+        }
+
+        .acciones-formulario {
+            flex-direction: row;
+            justify-content: center;
+        }
+
+        .btn-guardar, .btn-cancelar {
+            flex: 1;
+            padding: 10px;
+            justify-content: center;
+        }
+
+        input, select {
+            padding: 8px 10px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .acciones-formulario {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn-guardar, .btn-cancelar {
+            width: 100%;
+        }
+
+        .titulo-principal {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+    }
+
+    .btn-editar, .btn-eliminar {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px 8px;
+        font-size: 14px;
+        margin: 0 2px;
+        border-radius: 4px;
+    }
+
+    .btn-editar {
+        color: #1A2E5A;
+    }
+
+        .btn-editar:hover {
+            background-color: rgba(26, 46, 90, 0.1);
+        }
+
+    .btn-eliminar {
+        color: #E30613;
+    }
+
+        .btn-eliminar:hover {
+            background-color: rgba(227, 6, 19, 0.1);
+        }
+
+    .acciones-columna {
+        width: 120px;
+        text-align: center;
+    }
+
+    .mensaje-error {
+        color: #E30613;
+        background-color: #ffecec;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+        font-size: 14px;
+        border: 1px solid #ffc9c9;
+    }
+
+    /* Agrega esto a tus estilos CSS */
+    input:invalid, select:invalid {
+        border-color: #E30613;
+    }
+
+    .grupo-formulario.invalido label {
+        color: #E30613;
+    }
+</style>
+
+@code {
+    List<Usuario> usuarios = new();
+    Usuario usuarioForm = new();
+    Usuario? usuarioSeleccionado = null;
+    bool modoEditar = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUsuarios();
+
+        clientesFiltrados = usuarios.ToList();
+    }
+
+    async Task CargarUsuarios()
+    {
+        usuarios = await Http.GetFromJsonAsync<List<Usuario>>("api/Usuario/obtener-todos") ?? new();
+    }
+
+    void NuevoUsuario()
+    {
+        usuarioSeleccionado = null;
+        usuarioForm = new Usuario();
+        modoEditar = false;
+    }
+
+    void SeleccionarUsuario(Usuario usuario)
+    {
+        usuarioSeleccionado = usuario;
+        usuarioForm = new Usuario
+            {
+                idUsuario = usuario.idUsuario,
+                nombre = usuario.nombre,
+                rol = usuario.rol,
+                codigoAcceso = usuario.codigoAcceso
+            };
+        modoEditar = true;
+    }
+
+    List<Usuario> clientesFiltrados = new();
+    string filtroBusqueda = "";
+
+    void FiltrarClientes()
+    {
+        if (string.IsNullOrWhiteSpace(filtroBusqueda))
+        {
+            clientesFiltrados = usuarios.ToList();
+        }
+        else
+        {
+            var termino = filtroBusqueda.ToLower();
+            clientesFiltrados = usuarios.Where(c =>
+                c.nombre.ToLower().Contains(termino) ||
+                c.rol.ToLower().Contains(termino)
+            ).ToList();
+        }
+    }
+
+    async Task EliminarUsuario(int idUsuario)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Usuario/eliminar/{idUsuario}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Eliminar el usuario de la lista local primero para respuesta más rápida
+                usuarios.RemoveAll(u => u.idUsuario == idUsuario);
+                clientesFiltrados.RemoveAll(u => u.idUsuario == idUsuario);
+
+                // Forzar actualización de la UI
+                StateHasChanged();
+
+                // Opcional: Recargar desde el servidor para estar seguros
+                await Task.Delay(100); // Pequeño delay para que se vea la actualización
+                await CargarUsuarios();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error al eliminar: {error}");
+                // Aquí podrías mostrar un mensaje de error al usuario
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar usuario: {ex.Message}");
+            // Mostrar mensaje de error al usuario
+        }
+    }
+
+
+    async Task Guardar()
+    {
+
+        // Validar campos requeridos
+        if (string.IsNullOrWhiteSpace(usuarioForm.nombre))
+        {
+            mostrarError = true;
+            mensajeError = "El nombre es requerido";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuarioForm.codigoAcceso))
+        {
+            mostrarError = true;
+            mensajeError = "La contraseña es requerida";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuarioForm.rol))
+        {
+            mostrarError = true;
+            mensajeError = "Debe seleccionar un rol";
+            return;
+        }
+
+        // Validar longitud mínima de contraseña (opcional)
+        if (usuarioForm.codigoAcceso.Length < 6)
+        {
+            mostrarError = true;
+            mensajeError = "La contraseña debe tener al menos 6 caracteres";
+            return;
+        }
+
+        mostrarError = false;
+
+        try
+        {
+            if (modoEditar)
+            {
+                var response = await Http.PutAsJsonAsync($"api/Usuario/ActualizarUsuario/{usuarioForm.idUsuario}", usuarioForm);
+                if (response.IsSuccessStatusCode)
+                {
+                    await CargarUsuarios();
+                    FiltrarClientes();
+                    Cancelar();
+                }
+            }
+            else
+            {
+                var response = await Http.PostAsJsonAsync("api/Usuario/registrar", usuarioForm);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // Opción 1: Recargar todos los usuarios desde el servidor (más seguro)
+                    await CargarUsuarios();
+                    FiltrarClientes();
+
+                    // Opción 2: Agregar el nuevo usuario localmente (más rápido)
+                    /*
+                    var nuevoUsuario = await response.Content.ReadFromJsonAsync<Usuario>();
+                    usuarios.Add(nuevoUsuario);
+                    clientesFiltrados = usuarios.ToList();
+                    */
+
+                                            Cancelar();
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar: {ex.Message}");
+        }
+    }
+    async Task Eliminar(int id)
+    {
+        await Http.DeleteAsync($"api/Usuario/EliminarUsuario/{id}");
+        usuarioSeleccionado = null;
+        await CargarUsuarios();
+    }
+
+    void Cancelar()
+    {
+        usuarioForm = new();
+        usuarioSeleccionado = null;
+        modoEditar = false;
+    }
+    Usuario nuevoCliente = new();
+
+    public class Usuario
+    {
+        public int idUsuario { get; set; }
+        public string nombre { get; set; } = string.Empty;
+        public string rol { get; set; } = string.Empty;
+        public string codigoAcceso { get; set; } = string.Empty;
+    }
+
+
+
+    void EditarUsuario(Usuario usuario)
+    {
+        usuarioSeleccionado = usuario;
+        usuarioForm = new Usuario
+            {
+                idUsuario = usuario.idUsuario,
+                nombre = usuario.nombre,
+                rol = usuario.rol,
+                codigoAcceso = usuario.codigoAcceso
+            };
+        modoEditar = true;
+    }
+
+
+    // Agrega estas propiedades en la sección @code
+    bool mostrarError = false;
+    string mensajeError = "";
+
+
+}

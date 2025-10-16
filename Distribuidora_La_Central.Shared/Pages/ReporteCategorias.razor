@@ -1,0 +1,240 @@
+@page "/reporte-categoriaproductos"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    :root {
+        --primary-blue: #1976D2;
+        --dark-blue: #0D47A1;
+        --light-blue: #E3F2FD;
+        --white: #FFFFFF;
+        --gray: #F5F5F5;
+        --dark-gray: #333333;
+        --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .report-container {
+        font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        color: var(--dark-gray);
+    }
+
+    .report-header {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--primary-blue);
+    }
+
+    .report-title {
+        color: var(--primary-blue);
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .report-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 250px;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+        .search-input:focus {
+            border-color: var(--primary-blue);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+
+    .download-btn {
+        background-color: var(--primary-blue);
+        color: var(--white);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+    }
+
+        .download-btn:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+    .data-table-container {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: var(--white);
+    }
+
+        .data-table thead {
+            background-color: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .data-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background-color: var(--light-blue);
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #BBDEFB;
+        }
+
+    .status-message {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.2rem;
+        color: #666;
+    }
+
+    /* Responsive adjustments */
+    @@media (min-width: 768px) {
+        .report-header
+
+    {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .report-controls {
+        flex-wrap: nowrap;
+    }
+
+    }
+
+    @@media (max-width: 600px) {
+        .data-table th, .data-table td
+
+    {
+        padding: 8px 10px;
+        font-size: 0.9rem;
+    }
+
+    .report-title {
+        font-size: 1.5rem;
+    }
+
+    .download-btn {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+
+    }</style>
+
+<div class="report-container">
+    <div class="report-header">
+        <h3 class="report-title">Reporte de Categorías de Productos</h3>
+
+        <div class="report-controls">
+            <input @bind="filtro" placeholder="Buscar..." class="search-input" />
+            <button class="download-btn" @onclick="DescargarPdf">
+                <i class="fas fa-file-pdf"></i> Descargar PDF
+            </button>
+        </div>
+    </div>
+
+    @if (itemsFiltrados == null)
+    {
+        <div class="status-message">
+            <p>Cargando datos...</p>
+        </div>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <div class="status-message">
+            <p>No se encontraron datos.</p>
+        </div>
+    }
+    else
+    {
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(CategoriaProducto).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(CategoriaProducto).GetProperties())
+                            {
+                                <td>@prop.GetValue(item)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<CategoriaProducto> items = new();
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<CategoriaProducto>>("api/CategoriaProducto/obtener-todas-categorias");
+    }
+
+    private List<CategoriaProducto> itemsFiltrados =>
+    string.IsNullOrWhiteSpace(filtro)
+    ? items
+    : items.Where(x => x.idCategoria.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.nombre.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.descripcion.Contains(filtro, StringComparison.OrdinalIgnoreCase)).ToList();
+
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("/api/CategoriaProducto/DescargarReporteCategorias").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}

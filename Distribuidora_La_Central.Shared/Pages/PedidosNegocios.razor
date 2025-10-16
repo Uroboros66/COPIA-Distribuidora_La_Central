@@ -1,0 +1,63 @@
+﻿@page "/pedidosnegocios"
+
+<h3>Realizar Pedido a Negocios</h3>
+
+<div class="pedido-container">
+    <div class="pedido-content">
+        <div class="negocio-info">
+            <h4>Negocio</h4>
+            <label>Selecciona el Negocio:</label>
+            <select>
+                <option>Selecciona el Negocio</option>
+            </select>
+        </div>
+        <div class="pedido-info">
+            <h4>Pedido</h4>
+            <label>Selecciona el Pedido:</label>
+            <select>
+                <option>Selecciona el Pedido</option>
+            </select>
+        </div>
+        <div class="credito-info">
+            <h4>Límite de Crédito</h4>
+            <input type="text" />
+        </div>
+    </div>
+    <div class="botones">
+        <button>Confirmación</button>
+    </div>
+</div>
+
+<style>
+    .pedido-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        border: 2px solid black;
+        padding: 15px;
+        background: white;
+    }
+
+    .pedido-content {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .botones {
+        display: flex;
+        justify-content: center;
+        margin-top: 10px;
+    }
+
+    button {
+        padding: 5px 10px;
+        background: #ccc;
+        border: 1px solid black;
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    // Código C# para futuras funcionalidades
+}

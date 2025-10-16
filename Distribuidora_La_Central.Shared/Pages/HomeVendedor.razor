@@ -1,0 +1,930 @@
+﻿@page "/HomeVendedor"
+
+@inject HttpClient Http
+@{
+    var backgroundColor = "#1A2E5A";  // Azul Oscuro Corporativo
+    var primaryColor = "#E30613";     // Rojo Energético
+    var secondaryColor = "#FFC72C";   // Amarillo Corporativo (accent)
+    var textColor = "#FFFFFF";        // Blanco
+    var lightText = "rgba(255,255,255,0.8)";
+}
+
+<style>
+    :root {
+        --bg-color: @backgroundColor;
+        --primary-color: @primaryColor;
+        --secondary-color: @secondaryColor;
+        --text-color: @textColor;
+        --light-text: @lightText;
+        --card-bg: rgba(255, 255, 255, 0.1);
+        --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        font-family: 'Segoe UI', 'Roboto', sans-serif;
+        color: var(--text-color);
+        line-height: 1.6;
+        background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.05) 0%, transparent 50%), linear-gradient(to bottom, var(--bg-color), #0F1F3D);
+        min-height: 100vh;
+    }
+
+    .dashboard {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        margin-bottom: 30px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .logo {
+        height: 50px;
+        width: auto;
+    }
+
+    .brand-name {
+        font-size: 1.8rem;
+        font-weight: 700;
+        background: linear-gradient(to right, var(--text-color), var(--light-text));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .brand-tagline {
+        font-size: 0.9rem;
+        color: var(--light-text);
+        margin-top: 5px;
+    }
+
+    .user-menu {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .user-greeting {
+        text-align: right;
+    }
+
+    .welcome-text {
+        font-size: 0.9rem;
+        color: var(--light-text);
+    }
+
+    .username {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-top: 3px;
+    }
+
+    .user-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background-color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .user-avatar:hover {
+        transform: scale(1.05);
+    }
+
+    .main-content {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .content-area {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 30px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 15px;
+        padding: 25px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        transition: var(--transition);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-title {
+        font-size: 0.9rem;
+        color: var(--light-text);
+        margin-bottom: 10px;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .stat-change {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.85rem;
+    }
+
+    .positive {
+        color: #4CAF50;
+    }
+
+    .negative {
+        color: #F44336;
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 15px;
+        padding: 30px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        display: grid;
+        grid-template-rows: auto 1fr;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .card-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: var(--text-color);
+    }
+
+    .btn-primary:hover {
+        background-color: #C10511;
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+        background-color: rgba(255,255,255,0.1);
+        color: var(--text-color);
+    }
+
+    .btn-secondary:hover {
+        background-color: rgba(255,255,255,0.2);
+    }
+
+    .btn svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .action-card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .action-card:hover {
+        background: rgba(255,255,255,0.15);
+        transform: translateY(-3px);
+    }
+
+    .action-icon {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 10px;
+        background-color: var(--primary-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .action-title {
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .recent-orders {
+        margin-top: 20px;
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .orders-table th {
+        text-align: left;
+        padding: 12px 15px;
+        font-weight: 500;
+        color: var(--light-text);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .orders-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .order-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .status-pending {
+        background-color: rgba(255, 193, 7, 0.2);
+        color: #FFC107;
+    }
+
+    .status-completed {
+        background-color: rgba(76, 175, 80, 0.2);
+        color: #4CAF50;
+    }
+
+    .status-canceled {
+        background-color: rgba(244, 67, 54, 0.2);
+        color: #F44336;
+    }
+
+    .product-image {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        object-fit: cover;
+        background-color: rgba(255,255,255,0.1);
+    }
+
+    .view-all {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 15px;
+    }
+
+    .view-all-link {
+        color: var(--secondary-color);
+        text-decoration: none;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .welcome-banner {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        text-align: left;
+        padding: 40px 0;
+    }
+
+    .welcome-title {
+        font-size: 2rem;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, var(--text-color), var(--secondary-color));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .welcome-subtitle {
+        font-size: 1.1rem;
+        color: var(--light-text);
+        margin-bottom: 30px;
+        max-width: 600px;
+    }
+
+    .dashboard-button {
+        padding: 12px 30px;
+        font-size: 1.1rem;
+        background-color: var(--primary-color);
+        color: var(--text-color);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 15px rgba(227, 6, 19, 0.3);
+    }
+
+    .dashboard-button:hover {
+        background-color: #C10511;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(227, 6, 19, 0.4);
+    }
+
+    .dashboard-button svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--light-text);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    .empty-text {
+        font-size: 1.1rem;
+        margin-bottom: 20px;
+    }
+
+    @@media (max-width: 1200px) {
+        .stats-grid, .quick-actions {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .stats-grid, .quick-actions {
+            grid-template-columns: 1fr;
+        }
+        
+        .header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        
+        .user-menu {
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+</style>
+
+<div class="dashboard">
+    <header class="header">
+        <div class="logo-container">
+            <img src="logo.png" alt="Distribuidora LaCentral" class="logo" />
+            <div>
+                <div class="brand-name">DISTRIBUIDORA LACENTRAL</div>
+                <div class="brand-tagline">Panel de Vendedor</div>
+            </div>
+        </div>
+
+        <div class="user-menu">
+            <div class="user-greeting">
+                <div class="welcome-text">Bienvenido</div>
+                <div class="username">@nombreUsuario</div>
+            </div>
+            <div class="user-avatar" title="Mi perfil">
+                @avatarIniciales
+            </div>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="content-area">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title">Ventas Hoy</div>
+                    @if (ventasHoyCargando)
+                    {
+                        <div class="stat-value">Cargando...</div>
+                    }
+                    else
+                    {
+                        <div class="stat-value">@ventasHoy.ToString("C")</div>
+                        <div class="stat-change @(cambioVentasHoy >= 0 ? "positive" : "negative")">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                <path d="@(cambioVentasHoy >= 0 ? "M7,15L12,10L17,15H7Z" : "M7,10L12,15L17,10H7Z")" />
+                            </svg>
+                            @(cambioVentasHoy >= 0 ? $"+{cambioVentasHoy}%" : $"{cambioVentasHoy}%") vs ayer
+                        </div>
+                    }
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Ventas Mes</div>
+                    @if (ventasMesCargando)
+                    {
+                        <div class="stat-value">Cargando...</div>
+                    }
+                    else
+                    {
+                        <div class="stat-value">@ventasMes.ToString("C")</div>
+                        <div class="stat-change @(cambioVentasMes >= 0 ? "positive" : "negative")">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                <path d="@(cambioVentasMes >= 0 ? "M7,15L12,10L17,15H7Z" : "M7,10L12,15L17,10H7Z")" />
+                            </svg>
+                            @(cambioVentasMes >= 0 ? $"+{cambioVentasMes}%" : $"{cambioVentasMes}%") vs mes pasado
+                        </div>
+                    }
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Clientes Nuevos</div>
+                    @if (clientesNuevosCargando)
+                    {
+                        <div class="stat-value">Cargando...</div>
+                    }
+                    else
+                    {
+                        <div class="stat-value">@clientesNuevos</div>
+                        <div class="stat-change @(cambioClientesNuevos >= 0 ? "positive" : "negative")">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                <path d="@(cambioClientesNuevos >= 0 ? "M7,15L12,10L17,15H7Z" : "M7,10L12,15L17,10H7Z")" />
+                            </svg>
+                            @(cambioClientesNuevos >= 0 ? $"+{cambioClientesNuevos}%" : $"{cambioClientesNuevos}%") este mes
+                        </div>
+                    }
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Meta Mensual</div>
+                    @if (metaCargando)
+                    {
+                        <div class="stat-value">Cargando...</div>
+                    }
+                    else
+                    {
+                       
+                        <div class="progress-bar" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 10px;">
+                            <div style="width: @(porcentajeMeta + "%"); height: 100%; background: @(porcentajeMeta >= 80 ? "#4CAF50" : porcentajeMeta >= 50 ? "#FFC107" : "#E30613"); border-radius: 3px;"></div>
+                        </div>
+                        <div class="stat-change" style="margin-top: 5px;">
+                            @((metaVentas - ventasMes).ToString("C")) para alcanzar la meta
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <div class="action-card" @onclick="NuevaVenta">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                        </svg>
+                    </div>
+                    <div class="action-title">Nueva Venta</div>
+                </div>
+                <div class="action-card" @onclick="NuevoCliente">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M15,14C12.33,14 7,15.33 7,18V20H23V18C23,15.33 17.67,14 15,14M6,10V7H4V10H1V12H4V15H6V12H9V10M15,12A4,4 0 0,0 19,8A4,4 0 0,0 15,4A4,4 0 0,0 11,8A4,4 0 0,0 15,12Z" />
+                        </svg>
+                    </div>
+                    <div class="action-title">Nuevo Cliente</div>
+                </div>
+                <div class="action-card" @onclick="ConsultarInventario">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M12,3L2,12H5V20H19V12H22L12,3M12,7.7C14.1,7.7 15.8,9.4 15.8,11.5C15.8,14.5 12,18 12,18C12,18 8.2,14.5 8.2,11.5C8.2,9.4 9.9,7.7 12,7.7M12,10A1.5,1.5 0 0,0 10.5,11.5A1.5,1.5 0 0,0 12,13A1.5,1.5 0 0,0 13.5,11.5A1.5,1.5 0 0,0 12,10Z" />
+                        </svg>
+                    </div>
+                    <div class="action-title">Consultar Inventario</div>
+                </div>
+                <div class="action-card" @onclick="MisClientes">
+                    <div class="action-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M16 17V19H2V17S2 13 9 13 16 17 16 17M12.5 7.5A3.5 3.5 0 1 0 9 11A3.5 3.5 0 0 0 12.5 7.5M15.94 13A5.32 5.32 0 0 1 18 17V19H22V17S22 13.37 15.94 13M15 4A3.39 3.39 0 0 0 13.07 4.59A5 5 0 0 1 13.07 10.41A3.39 3.39 0 0 0 15 11A3.5 3.5 0 0 0 15 4Z" />
+                        </svg>
+                    </div>
+                    <div class="action-title">Mis Clientes</div>
+                </div>
+            </div>
+
+            <div class="main-card">
+                <div class="card-header">
+                    <h2 class="card-title">Pedidos Recientes</h2>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary" @onclick="ActualizarDatos">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                            </svg>
+                            Actualizar
+                        </button>
+                        <button class="btn btn-primary" @onclick="NuevaVenta">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                            </svg>
+                            Nuevo Pedido
+                        </button>
+                    </div>
+                </div>
+
+                <div class="recent-orders">
+                    @if (pedidosCargando)
+                    {
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                                    <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+                                </svg>
+                            </div>
+                            <div class="empty-text">Cargando pedidos...</div>
+                        </div>
+                    }
+                    else if (pedidosRecientes.Count == 0)
+                    {
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                                </svg>
+                            </div>
+                            <div class="empty-text">No hay pedidos recientes</div>
+                            <button class="dashboard-button" @onclick="NuevaVenta">
+                                <svg viewBox="0 0 24 24" width="20" height="20">
+                                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                                </svg>
+                                Crear primer pedido
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <table class="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Pedido #</th>
+                                    <th>Cliente</th>
+                                    <th>Productos</th>
+                                    <th>Total</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var pedido in pedidosRecientes)
+                                {
+                                    <tr @onclick="() => VerDetallePedido(pedido.Id)">
+                                        <td>@pedido.NumeroPedido</td>
+                                        <td>@pedido.ClienteNombre</td>
+                                        <td>
+                                            <div style="display: flex; gap: 5px;">
+                                                @foreach (var producto in pedido.Productos.Take(3))
+                                                {
+                                                    <img src="@producto.ImagenUrl" alt="@producto.Nombre" class="product-image" title="@producto.Nombre" />
+                                                }
+                                                @if (pedido.Productos.Count > 3)
+                                                {
+                                                    <div style="width: 40px; height: 40px; border-radius: 4px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
+                                                        +@(pedido.Productos.Count - 3)
+                                                    </div>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>@pedido.Total.ToString("C")</td>
+                                        <td>@pedido.Fecha.ToShortDateString()</td>
+                                        <td>
+                                            <span class="order-status @GetStatusClass(pedido.Estado)">@pedido.Estado</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <div class="view-all">
+                            <a href="/pedidos" class="view-all-link">
+                                Ver todos los pedidos
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
+                                </svg>
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string nombreUsuario = "Juan Pérez";
+    private string avatarIniciales = "JP";
+
+    // Variables para estadísticas
+    private decimal ventasHoy = 0;
+    private int cambioVentasHoy = 0;
+    private bool ventasHoyCargando = true;
+    
+    private decimal ventasMes = 0;
+    private int cambioVentasMes = 0;
+    private bool ventasMesCargando = true;
+    
+    private int clientesNuevos = 0;
+    private int cambioClientesNuevos = 0;
+    private bool clientesNuevosCargando = true;
+    
+    private decimal metaVentas = 10000m;
+    private decimal porcentajeMeta = 0;
+    private bool metaCargando = true;
+
+    // Variables para pedidos
+    private List<Pedido> pedidosRecientes = new List<Pedido>();
+    private bool pedidosCargando = true;
+
+    // Manejo de errores
+    private bool errorCarga = false;
+    private string mensajeError = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        try
+        {
+            ventasHoyCargando = true;
+            ventasMesCargando = true;
+            clientesNuevosCargando = true;
+            metaCargando = true;
+            pedidosCargando = true;
+            errorCarga = false;
+
+            await Task.WhenAll(
+                ObtenerVentasHoy(),
+                ObtenerVentasMes(),
+                ObtenerClientesNuevos(),
+                ObtenerMetaVentas(),
+                ObtenerPedidosRecientes()
+            );
+        }
+        catch (Exception ex)
+        {
+            errorCarga = true;
+            mensajeError = ex.Message;
+        }
+        finally
+        {
+            ventasHoyCargando = false;
+            ventasMesCargando = false;
+            clientesNuevosCargando = false;
+            metaCargando = false;
+            pedidosCargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ObtenerVentasHoy()
+    {
+        try
+        {
+            // Simulación de datos - en una aplicación real harías una llamada API
+            await Task.Delay(500);
+            ventasHoy = new Random().Next(500, 2000);
+            cambioVentasHoy = new Random().Next(-10, 30);
+        }
+        catch
+        {
+            throw new Exception("Error al cargar ventas de hoy");
+        }
+    }
+
+    private async Task ObtenerVentasMes()
+    {
+        try
+        {
+            // Simulación de datos
+            await Task.Delay(600);
+            ventasMes = new Random().Next(5000, 9000);
+            cambioVentasMes = new Random().Next(5, 25);
+        }
+        catch
+        {
+            throw new Exception("Error al cargar ventas del mes");
+        }
+    }
+
+    private async Task ObtenerClientesNuevos()
+    {
+        try
+        {
+            // Simulación de datos
+            await Task.Delay(400);
+            clientesNuevos = new Random().Next(3, 12);
+            cambioClientesNuevos = new Random().Next(10, 40);
+        }
+        catch
+        {
+            throw new Exception("Error al cargar datos de clientes nuevos");
+        }
+    }
+
+    private async Task ObtenerMetaVentas()
+    {
+        try
+        {
+            // Simulación de datos
+            await Task.Delay(300);
+            porcentajeMeta = (ventasMes / metaVentas) * 100;
+            if (porcentajeMeta > 100) porcentajeMeta = 100;
+        }
+        catch
+        {
+            throw new Exception("Error al cargar meta de ventas");
+        }
+    }
+
+    private async Task ObtenerPedidosRecientes()
+    {
+        try
+        {
+            // Simulación de datos
+            await Task.Delay(800);
+            
+            var productosEjemplo = new List<ProductoPedido>
+            {
+                new ProductoPedido { Id = 1, Nombre = "Arroz 5kg", ImagenUrl = "productos/arroz.jpg", Cantidad = 2, Precio = 12.50m },
+                new ProductoPedido { Id = 2, Nombre = "Aceite 1L", ImagenUrl = "productos/aceite.jpg", Cantidad = 3, Precio = 8.75m },
+                new ProductoPedido { Id = 3, Nombre = "Frijoles 1kg", ImagenUrl = "productos/frijoles.jpg", Cantidad = 5, Precio = 4.20m },
+                new ProductoPedido { Id = 4, Nombre = "Azúcar 2kg", ImagenUrl = "productos/azucar.jpg", Cantidad = 1, Precio = 6.80m }
+            };
+
+            pedidosRecientes = new List<Pedido>
+            {
+                new Pedido { 
+                    Id = 1, 
+                    NumeroPedido = "P-00123", 
+                    ClienteNombre = "Supermercado El Ahorro", 
+                    Productos = productosEjemplo.Take(2).ToList(), 
+                    Total = 45.25m, 
+                    Fecha = DateTime.Now.AddDays(-1), 
+                    Estado = "Completado" 
+                },
+                new Pedido { 
+                    Id = 2, 
+                    NumeroPedido = "P-00124", 
+                    ClienteNombre = "Tienda Doña Rosa", 
+                    Productos = productosEjemplo.Take(3).ToList(), 
+                    Total = 78.90m, 
+                    Fecha = DateTime.Now.AddDays(-2), 
+                    Estado = "En proceso" 
+                },
+                new Pedido { 
+                    Id = 3, 
+                    NumeroPedido = "P-00125", 
+                    ClienteNombre = "Mini Market La Esquina", 
+                    Productos = productosEjemplo, 
+                    Total = 112.35m, 
+                    Fecha = DateTime.Now.AddDays(-3), 
+                    Estado = "Pendiente" 
+                }
+            };
+        }
+        catch
+        {
+            throw new Exception("Error al cargar pedidos recientes");
+        }
+    }
+
+    private string GetStatusClass(string estado)
+    {
+        return estado switch
+        {
+            "Completado" => "status-completed",
+            "En proceso" => "status-pending",
+            "Pendiente" => "status-pending",
+            "Cancelado" => "status-canceled",
+            _ => "status-pending"
+        };
+    }
+
+    private async Task ActualizarDatos()
+    {
+        await CargarDatos();
+    }
+
+    private void NuevaVenta()
+    {
+        // Navegar a la página de nueva venta
+        NavigationManager.NavigateTo("/nueva-venta");
+    }
+
+    private void NuevoCliente()
+    {
+        // Navegar a la página de nuevo cliente
+        NavigationManager.NavigateTo("/clientes/nuevo");
+    }
+
+    private void ConsultarInventario()
+    {
+        // Navegar a la página de inventario
+        NavigationManager.NavigateTo("/inventario");
+    }
+
+    private void MisClientes()
+    {
+        // Navegar a la página de clientes
+        NavigationManager.NavigateTo("/clientes");
+    }
+
+    private void VerDetallePedido(int id)
+    {
+        // Navegar al detalle del pedido
+        NavigationManager.NavigateTo($"/pedidos/{id}");
+    }
+
+    // Clases para el modelo de datos
+    public class Pedido
+    {
+        public int Id { get; set; }
+        public string NumeroPedido { get; set; }
+        public string ClienteNombre { get; set; }
+        public List<ProductoPedido> Productos { get; set; }
+        public decimal Total { get; set; }
+        public DateTime Fecha { get; set; }
+        public string Estado { get; set; }
+    }
+
+    public class ProductoPedido
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; }
+        public string ImagenUrl { get; set; }
+        public int Cantidad { get; set; }
+        public decimal Precio { get; set; }
+    }
+
+    [Inject]
+    protected NavigationManager NavigationManager { get; set; }
+}

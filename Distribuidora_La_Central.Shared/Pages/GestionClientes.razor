@@ -1,0 +1,758 @@
+﻿@page "/gestionclientes"
+@inject HttpClient Http
+@using System.Text.Json
+
+<div class="gestor-clientes">
+    <h3 class="titulo-principal">Gestión de Clientes</h3>
+
+    <div class="contenedor-principal">
+        <!-- Formulario de cliente -->
+        <div class="panel-formulario">
+            <div class="encabezado-panel">
+                <h4>@(modoEditar ? "Editar Cliente" : "Nuevo Cliente")</h4>
+            </div>
+
+            <div class="formulario">
+                <div class="form-grid">
+                    <div class="grupo-formulario">
+                        <label>Nombre:</label>
+                        <input type="text" @bind="nuevoCliente.nombre" placeholder="Nombre del cliente" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Apellido:</label>
+                        <input type="text" @bind="nuevoCliente.apellido" placeholder="Apellido del cliente" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Cédula:</label>
+                        <input type="text" @bind="nuevoCliente.cedula" placeholder="Número de cédula" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Tipo de Cliente:</label>
+                        <select @bind="nuevoCliente.tipoCliente">
+                            <option value="">Seleccione tipo</option>
+                            <option value="Regular">Regular</option>
+                            <option value="VIP">VIP</option>
+                            <option value="Mayorista">Mayorista</option>
+                        </select>
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Teléfono:</label>
+                        <input type="text" @bind="nuevoCliente.telefono" placeholder="Número de teléfono" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Dirección:</label>
+                        <input type="text" @bind="nuevoCliente.direccion" placeholder="Dirección completa" />
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label>Creado por:</label>
+                        <select @bind="nuevoCliente.creado_por">
+                            <option value="">Seleccione un usuario</option>
+                            @foreach (var usuario in listaUsuarios)
+                            {
+                                <option value="@usuario.idUsuario">@usuario.nombre (@usuario.rol)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="acciones-formulario">
+                    <button class="btn-guardar" @onclick="GuardarCliente">
+                        <i class="icono-guardar"></i> @(modoEditar ? "Actualizar" : "Guardar")
+                    </button>
+                    @if (modoEditar)
+                    {
+                        <button class="btn-cancelar" @onclick="CancelarEdicion">
+                            <i class="icono-cancelar"></i> Cancelar
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de clientes -->
+        <div class="panel-lista">
+            <div class="encabezado-panel">
+                <h4>Lista de Clientes</h4>
+                <div class="busqueda">
+                    <input type="text" placeholder="Buscar clientes..." @bind="filtroBusqueda"
+                           @oninput="(e) => { filtroBusqueda = e.Value.ToString();  FiltrarClientes(); }" />
+                    <i class="icono-buscar"></i>
+
+                </div>
+                <button class="btn-nuevo" @onclick="NuevoCliente">+ Nuevo</button>
+            </div>
+
+            <div class="contenedor-tabla">
+                @if (clientesFiltrados?.Any() == true)
+                {
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Apellido</th>
+                                <th>Cédula</th>
+                                <th>Tipo</th>
+                                <th class="acciones-columna">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var cliente in clientesFiltrados)
+                            {
+                                <tr>
+                                    <td data-label="Código">@cliente.codigoCliente</td>
+                                    <td data-label="Nombre">@cliente.nombre</td>
+                                    <td data-label="Apellido">@cliente.apellido</td>
+                                    <td data-label="Cédula">@cliente.cedula</td>
+                                    <td data-label="Tipo"><span class="badge-tipo @cliente.tipoCliente.ToLower()">@cliente.tipoCliente</span></td>
+                                    <td class="acciones" data-label="Acciones">
+                                        <button class="btn-editar" @onclick="() => EditarCliente(cliente)" title="Editar">
+                                            <i class="icono-editar"></i>
+                                        </button>
+                                        <button class="btn-eliminar" @onclick="() => EliminarCliente(cliente.codigoCliente)" title="Eliminar">
+                                            <i class="icono-eliminar"></i>
+                                        </button>
+
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="sin-resultados">
+                        <i class="icono-cliente"></i>
+                        <p>No se encontraron clientes</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@code {
+
+    public class Usuario
+    {
+        public int idUsuario { get; set; }
+        public string nombre { get; set; } = string.Empty;
+        public string rol { get; set; } = string.Empty;
+        public string codigoAcceso { get; set; } = string.Empty;
+    }
+    private List<Usuario> listaUsuarios = new List<Usuario>();
+    List<Cliente> clientes = new();
+    List<Cliente> clientesFiltrados = new();
+    Cliente nuevoCliente = new();
+    string filtroBusqueda = "";
+    bool modoEditar = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientes();
+        await CargarUsuarios();
+    }
+
+
+    private async Task CargarUsuarios()
+    {
+        try
+        {
+            var response = await Http.GetAsync("api/Usuario/obtener-todos");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                listaUsuarios = JsonSerializer.Deserialize<List<Usuario>>(content);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar usuarios: {ex.Message}");
+        }
+    }
+
+
+    protected override void OnParametersSet()
+    {
+        FiltrarClientes();
+    }
+
+    async Task CargarClientes()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<Cliente>>("api/Cliente/GetAllClientes");
+            if (response is not null)
+            {
+                clientes = response;
+                FiltrarClientes();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error al cargar clientes: " + ex.Message);
+        }
+    }
+
+    void FiltrarClientes()
+    {
+        if (string.IsNullOrWhiteSpace(filtroBusqueda))
+        {
+            clientesFiltrados = clientes.ToList();
+        }
+        else
+        {
+            var termino = filtroBusqueda.ToLower();
+            clientesFiltrados = clientes.Where(c =>
+                c.nombre.ToLower().Contains(termino) ||
+                c.apellido.ToLower().Contains(termino) ||
+                c.cedula.ToLower().Contains(termino) ||
+                c.codigoCliente.ToString().Contains(termino) ||
+                c.tipoCliente.ToLower().Contains(termino)
+            ).ToList();
+        }
+    }
+
+    async Task GuardarCliente()
+    {
+        if (modoEditar)
+        {
+            var response = await Http.PutAsJsonAsync($"api/Cliente/ActualizarCliente/{nuevoCliente.codigoCliente}", nuevoCliente);
+            if (response.IsSuccessStatusCode)
+            {
+                modoEditar = false;
+                nuevoCliente = new();
+                await CargarClientes();
+            }
+        }
+        else
+        {
+            var response = await Http.PostAsJsonAsync("api/Cliente/AgregarCliente", nuevoCliente);
+            if (response.IsSuccessStatusCode)
+            {
+                nuevoCliente = new();
+                await CargarClientes();
+            }
+        }
+    }
+
+    void EditarCliente(Cliente cliente)
+    {
+        nuevoCliente = new Cliente
+            {
+                codigoCliente = cliente.codigoCliente,
+                nombre = cliente.nombre,
+                apellido = cliente.apellido,
+                cedula = cliente.cedula,
+                tipoCliente = cliente.tipoCliente,
+                telefono = cliente.telefono,
+                direccion = cliente.direccion,
+                creado_por = cliente.creado_por
+            };
+        modoEditar = true;
+    }
+
+    void CancelarEdicion()
+    {
+        nuevoCliente = new();
+        modoEditar = false;
+    }
+    void NuevoCliente()
+    {
+        nuevoCliente = new Cliente(); // Limpia el formulario
+        modoEditar = false;           // Establece el modo de creación (no edición)
+
+        // Si tienes un usuario por defecto para "creado_por", puedes asignarlo aquí
+        // nuevoCliente.creado_por = usuarioActual.idUsuario;
+
+        // También puedes hacer scroll automático al formulario si es necesario
+        // await JSRuntime.InvokeVoidAsync("scrollToForm");
+    }
+    async Task EliminarCliente(int codigoCliente)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Cliente/EliminarCliente/{codigoCliente}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await CargarClientes();
+                // Mostrar mensaje de éxito
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                // Mostrar mensaje de error al usuario
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar cliente: {ex.Message}");
+            // Mostrar mensaje de error al usuario
+        }
+    }
+
+    void VerDetalle(Cliente cliente)
+    {
+        // Implementar lógica para mostrar detalles del cliente
+        // Puede ser un modal o una página separada
+    }
+
+    public class Cliente
+    {
+        public int codigoCliente { get; set; }
+        public string cedula { get; set; } = string.Empty;
+        public string nombre { get; set; } = string.Empty;
+        public string apellido { get; set; } = string.Empty;
+        public string tipoCliente { get; set; } = string.Empty;
+        public string telefono { get; set; } = string.Empty;
+        public string direccion { get; set; } = string.Empty;
+        public int creado_por { get; set; }
+    }
+}
+
+<style>
+    /* Estilos base */
+    .gestor-clientes {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        padding: 15px;
+        background-color: #f5f7fa;
+        min-height: 100vh;
+    }
+
+    .titulo-principal {
+        color: #1A2E5A;
+        margin-bottom: 20px;
+        font-weight: 600;
+        border-bottom: 2px solid #E30613;
+        padding-bottom: 8px;
+        display: inline-block;
+        font-size: 1.5rem;
+    }
+
+    .contenedor-principal {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .panel-lista, .panel-formulario {
+        flex: 1;
+        min-width: 0;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .encabezado-panel {
+        background-color: #1A2E5A;
+        color: white;
+        padding: 12px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+        .encabezado-panel h4 {
+            margin: 0;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+    .busqueda {
+        position: relative;
+        width: 100%;
+        max-width: 250px;
+    }
+
+        .busqueda input {
+            width: 100%;
+            padding: 8px 30px 8px 10px;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+        }
+
+    .icono-buscar {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A2E5A'%3E%3Cpath d='M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .contenedor-tabla {
+        padding: 15px;
+        max-height: 600px;
+        overflow-y: auto;
+        overflow-x: auto;
+    }
+
+    .formulario {
+        padding: 15px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+    }
+
+    .grupo-formulario {
+        margin-bottom: 12px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #1A2E5A;
+        font-size: 0.875rem;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        transition: border-color 0.2s;
+    }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #1A2E5A;
+            box-shadow: 0 0 0 2px rgba(26, 46, 90, 0.2);
+        }
+
+    .acciones-formulario {
+        display: flex;
+        gap: 8px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+
+
+    .btn-nuevo {
+        background-color: #E30613;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+        .btn-nuevo:hover {
+            background-color: #c00510;
+        }
+
+    .btn-guardar {
+        background-color: #1A2E5A;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    /* Tabla */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    th {
+        background-color: #f8f9fa;
+        color: #1A2E5A;
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #e9ecef;
+        position: sticky;
+        top: 0;
+    }
+
+    td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e9ecef;
+        color: #495057;
+    }
+
+    tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .badge-tipo {
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+        .badge-tipo.regular {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .badge-tipo.vip {
+            background-color: #E30613;
+            color: white;
+        }
+
+        .badge-tipo.mayorista {
+            background-color: #1A2E5A;
+            color: white;
+        }
+
+    .acciones {
+        display: flex;
+        gap: 5px;
+        flex-wrap: nowrap;
+    }
+
+        .acciones button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+    .btn-editar {
+        color: #1A2E5A;
+    }
+
+        .btn-editar:hover {
+            background-color: rgba(26, 46, 90, 0.1);
+        }
+
+    .btn-eliminar {
+        color: #E30613;
+    }
+
+        .btn-eliminar:hover {
+            background-color: rgba(227, 6, 19, 0.1);
+        }
+
+    .btn-detalle {
+        color: #4a7856;
+    }
+
+        .btn-detalle:hover {
+            background-color: rgba(74, 120, 86, 0.1);
+        }
+
+    .icono-editar, .icono-eliminar, .icono-detalle {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .icono-editar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A2E5A'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E");
+    }
+
+    .icono-eliminar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23E30613'%3E%3Cpath d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/%3E%3C/svg%3E");
+    }
+
+    .icono-detalle {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234a7856'%3E%3Cpath d='M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z'/%3E%3C/svg%3E");
+    }
+
+    .sin-resultados {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 0;
+        color: #6c757d;
+    }
+
+    .icono-cliente {
+        width: 40px;
+        height: 40px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236c757d'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
+        background-size: contain;
+        background-repeat: no-repeat;
+        margin-bottom: 10px;
+    }
+
+    /* Botones */
+    .btn-guardar {
+        background-color: #1A2E5A;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.875rem;
+    }
+
+        .btn-guardar:hover {
+            background-color: #142445;
+        }
+
+    .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.875rem;
+    }
+
+        .btn-cancelar:hover {
+            background-color: #5a6268;
+        }
+
+    .icono-guardar, .icono-cancelar {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+
+    .icono-guardar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z'/%3E%3C/svg%3E");
+    }
+
+    .icono-cancelar {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    }
+
+    /* Responsive */
+    @@media (max-width: 992px) {
+        .panel-lista, .panel-formulario {
+            min-width: 100%;
+        }
+
+        .form-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .gestor-clientes {
+            padding: 10px;
+        }
+
+        .titulo-principal {
+            font-size: 1.3rem;
+        }
+
+        .contenedor-principal {
+            gap: 15px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .acciones {
+            justify-content: flex-start;
+        }
+
+        .busqueda {
+            max-width: 100%;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .encabezado-panel {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .busqueda {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        table thead {
+            display: none;
+        }
+
+        table tr {
+            display: block;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+            table td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #1A2E5A;
+                margin-right: 10px;
+            }
+
+        .acciones-columna {
+            display: none;
+        }
+
+        .acciones {
+            justify-content: center;
+        }
+
+        .btn-guardar, .btn-cancelar {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>

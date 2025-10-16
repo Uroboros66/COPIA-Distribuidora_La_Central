@@ -1,0 +1,2742 @@
+﻿﻿
+@page "/factura"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+@using System.Text.Json;
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Microsoft.Maui.Storage
+@using Microsoft.Maui.ApplicationModel
+@using Microsoft.Maui.ApplicationModel.DataTransfer
+
+
+<style>
+    /* Estilos optimizados para Android */
+    :root {
+        --primary-color: #1A2E5A;
+        --secondary-color: #E30613;
+        --accent-color: #FFC72C;
+        --text-color: #333333;
+        --light-text: #777777;
+        --border-color: #E0E0E0;
+        --bg-color: #F5F9FF;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    .invoice-container {
+        font-family: 'Roboto', sans-serif;
+        padding: 10px;
+        background-color: var(--bg-color);
+        min-height: 100vh;
+    }
+
+    .invoice-header {
+        margin-bottom: 15px;
+    }
+
+        .invoice-header h2 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+    .invoice-tabs {
+        display: flex;
+        gap: 5px;
+        overflow-x: auto;
+        padding-bottom: 3px;
+    }
+
+        .invoice-tabs button {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+        }
+
+            .invoice-tabs button.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+    .invoice-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .form-section {
+        margin-bottom: 20px;
+    }
+
+        .form-section h4 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+    .form-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .input-group {
+        margin-bottom: 10px;
+    }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+
+    .input-style, .select-style {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .product-form-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-add-product {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        margin-top: 5px;
+    }
+
+    .products-table-container {
+        overflow-x: auto;
+        margin-top: 15px;
+    }
+
+    .products-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+        .products-table th {
+            background-color: #f5f5f5;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .products-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+    .form-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .btn-save, .btn-cancel, .btn-payment {
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        border: none;
+    }
+
+    .btn-save {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .btn-cancel {
+        background-color: #f0f0f0;
+        color: var(--text-color);
+    }
+
+    .btn-payment {
+        background-color: var(--secondary-color);
+        color: white;
+    }
+
+    /* Modal optimizado para Android */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 15px;
+    }
+
+    .payment-modal {
+        background: white;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 500px;
+        padding: 15px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+    }
+
+    /* Media queries para tablets */
+    @@media (min-width: 600px) {
+        .form-grid {
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+            .form-grid .input-group {
+                flex: 1 1 45%;
+            }
+
+        .product-form-grid {
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+            .product-form-grid .input-group {
+                flex: 1 1 45%;
+            }
+
+        .form-actions {
+            flex-direction: row;
+        }
+    }
+
+    /* Variables de color */
+    :root {
+        --primary-blue: #1976D2;
+        --primary-blue-dark: #1565C0;
+        --primary-blue-light: #E3F2FD;
+        --light-blue: #E1F5FE;
+        --white: #FFFFFF;
+        --text-dark: #333333;
+        --text-light: #777777;
+        --border-color: #E0E0E0;
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --transition: all 0.3s ease;
+    }
+
+    /* Estructura principal */
+    .filters-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(3px);
+    }
+
+    .filters-panel-container {
+        width: 90%;
+        max-width: 850px;
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .filters-panel {
+        background-color: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Encabezado con degradado azul */
+    .filters-header {
+        background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+        color: var(--white);
+        padding: 1.5rem;
+        text-align: center;
+        position: relative;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .filters-header h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 500;
+        flex-grow: 1;
+        text-align: center;
+        letter-spacing: 0.5px;
+    }
+
+    .filters-header i {
+        font-size: 1.3rem;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: var(--white);
+        font-size: 1.3rem;
+        cursor: pointer;
+        padding: 5px;
+        transition: var(--transition);
+    }
+
+        .close-btn:hover {
+            transform: rotate(90deg);
+        }
+
+    /* Cuerpo del panel */
+    .filters-body {
+        padding: 0;
+    }
+
+    .filter-section {
+        padding: 1.5rem;
+        margin-bottom: 1px;
+    }
+
+    .blue-panel {
+        background-color: var(--primary-blue-light);
+        border-bottom: 1px solid rgba(25, 118, 210, 0.1);
+    }
+
+    .white-panel {
+        background-color: var(--white);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .light-blue-panel {
+        background-color: var(--light-blue);
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: var(--primary-blue-dark);
+        margin-bottom: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .section-title i {
+            font-size: 1rem;
+        }
+
+    /* Grid de filtros */
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .filter-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .filter-label {
+        display: block;
+        margin-bottom: 0.6rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-dark);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .filter-label i {
+            font-size: 0.9rem;
+            color: var(--primary-blue);
+        }
+
+    /* Elementos de formulario */
+    .filter-select, .filter-input {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        transition: var(--transition);
+        background-color: var(--white);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        }
+
+    .input-with-symbol {
+        position: relative;
+    }
+
+    .input-symbol {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-light);
+        font-weight: 500;
+    }
+
+    .filter-input.with-symbol {
+        padding-left: 30px;
+    }
+
+    .input-with-icon {
+        position: relative;
+    }
+
+        .input-with-icon i {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-blue);
+            pointer-events: none;
+        }
+
+    /* Toggle switch mejorado */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+        margin-left: auto;
+    }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+    input:checked + .toggle-slider {
+        background-color: var(--primary-blue);
+    }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+    /* Pie de página */
+    .filters-footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 1.2rem 1.5rem;
+        background-color: var(--white);
+        border-top: 1px solid var(--border-color);
+        gap: 1rem;
+    }
+
+    .btn {
+        padding: 0.7rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+        box-shadow: var(--shadow);
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--primary-blue-dark);
+            transform: translateY(-2px);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        color: var(--primary-blue);
+        border: 1px solid var(--primary-blue);
+    }
+
+        .btn-outline:hover {
+            background-color: var(--primary-blue-light);
+            transform: translateY(-2px);
+        }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .filters-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .filters-footer {
+            justify-content: center;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .filters-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filters-footer {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    .fa-spinner {
+        margin-right: 8px;
+    }
+
+    .btn[disabled] {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .btn-primary:active {
+        transform: translateY(1px);
+    }
+
+    .btn-filter {
+        /* Estilos base */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0.6rem 1.2rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        /* Colores y bordes */
+        background-color: var(--primary-blue-light);
+        color: var(--primary-blue-dark);
+        border: 1px solid var(--primary-blue);
+        /* Efectos visuales */
+        box-shadow: 0 2px 5px rgba(25, 118, 210, 0.1);
+    }
+
+        .btn-filter:hover {
+            background-color: var(--primary-blue);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(25, 118, 210, 0.2);
+        }
+
+        .btn-filter:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 3px rgba(25, 118, 210, 0.2);
+        }
+
+        .btn-filter i {
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-filter:hover i {
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Efecto de onda al hacer clic */
+        .btn-filter::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+
+        .btn-filter:focus:not(:active)::after {
+            animation: ripple 0.6s ease-out;
+        }
+
+    @@keyframes ripple {
+        0% {
+            transform: scale(0, 0);
+            opacity: 0.5;
+        }
+
+        100% {
+            transform: scale(20, 20);
+            opacity: 0;
+        }
+    }
+</style>
+<!-- Agregar Font Awesome para los íconos -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+
+
+<div class="invoice-container">
+    <div class="invoice-header">
+        <h2><i class="fas fa-file-invoice"></i> Gestión de Facturas</h2>
+
+        <div class="invoice-tabs">
+            <button class="@GetTabClass("facturacion")" @onclick="@(() => CambiarTab("facturacion"))">
+                <i class="fas fa-plus-circle"></i> Nueva Factura
+            </button>
+            <button class="@GetTabClass("historial")" @onclick="@(() => CambiarTab("historial"))">
+                <i class="fas fa-history"></i> Historial
+            </button>
+        </div>
+    </div>
+
+    @if (activeTab == "facturacion")
+    {
+        <div class="invoice-card">
+            <EditForm Model="@factura" OnValidSubmit="@GuardarFactura">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-section">
+                    <h4><i class="fas fa-info-circle"></i> Información Básica</h4>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select @bind="factura.codigoCliente" class="select-style">
+                                <option value="">-- Seleccione cliente --</option>
+                                @if (clientes != null)
+                                {
+                                    @foreach (var c in clientes)
+                                    {
+                                        <option value="@c.codigoCliente">@c.nombre @c.apellido</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-calendar-alt"></i> Fecha</label>
+                            <input type="date" @bind="factura.fecha" class="input-style" />
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-dollar-sign"></i> Total</label>
+                            <input type="text" @bind="factura.totalFactura" class="input-style" readonly />
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-wallet"></i> Saldo</label>
+                            <input type="text" @bind="factura.saldo" class="input-style" readonly />
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-tags"></i> Tipo</label>
+                            <select @bind="factura.tipo" class="select-style" required>
+                                <option value="">-- Seleccione tipo --</option>
+                                <option value="Contado">Contado</option>
+                                <option value="Crédito">Crédito</option>
+                            </select>
+                            <ValidationMessage For="@(() => factura.tipo)" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider-blue"></div>
+
+                <div class="form-section">
+                    <h4><i class="fas fa-boxes"></i> Productos</h4>
+                    <div class="product-form-grid">
+                        <div class="input-group">
+                            <label><i class="fas fa-barcode"></i> Producto</label>
+                            <select @onchange="ProductoSeleccionado" class="select-style">
+                                <option value="">-- Seleccione producto --</option>
+                                @if (productos != null && productos.Any())
+                                {
+                                    @foreach (var prod in productos)
+                                    {
+                                        <option value="@prod.codigoProducto">@prod.descripcion</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-hashtag"></i> Código</label>
+                            <input type="text" value="@productoSeleccionado?.codigoProducto" class="input-style" readonly />
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-tag"></i> Precio</label>
+                            <input type="text" value="@productoSeleccionado?.costo.ToString("F2")" class="input-style" readonly />
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fas fa-ruler"></i> Unidad de Medida</label>
+                            <select @bind="detalleFactura.unidadMedida" class="select-style">
+                                <option value="">-- Seleccione unidad --</option>
+                                @foreach (var unidad in unidades)
+                                {
+                                    <option value="@unidad.Nombre">@unidad.Nombre</option>
+                                }
+                            </select>
+
+                        </div>
+
+
+
+                        <div class="input-group">
+                            <label><i class="fas fa-calculator"></i> Cantidad</label>
+                            <input type="number" @bind="detalleFactura.cantidad" min="1" class="input-style" />
+                        </div>
+
+                        <button type="button" class="btn-add-product" @onclick="AgregarProducto">
+                            <i class="fas fa-plus"></i> Agregar
+                        </button>
+                    </div>
+
+                    @if (detallesFactura.Any())
+                    {
+                        <div class="products-table-container">
+                            <table class="products-table">
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-hashtag"></i> Código</th>
+                                        <th><i class="fas fa-align-left"></i> Descripción</th>
+                                        <th><i class="fas fa-tag"></i> Precio</th>
+                                        <th><i class="fas fa-calculator"></i> Cantidad</th>
+                                        <th><i class="fas fa-ruler"></i> Unidad</th>
+                                        <th><i class="fas fa-money-bill-wave"></i> Subtotal</th>
+                                        <th><i class="fas fa-cog"></i> Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var detalle in detallesFactura)
+                                    {
+                                        <tr>
+                                            <td>@detalle.codigoProducto</td>
+                                            <td>@(productos.FirstOrDefault(p => p.codigoProducto == detalle.codigoProducto)?.descripcion)</td>
+                                            <td>@detalle.precioUnitario.ToString("F2")</td>
+                                            <td>@detalle.cantidad</td>
+                                            <td>@detalle.unidadMedida</td>
+                                            <td>@detalle.subtotal.ToString("F2")</td>
+                                            <td>
+                                                <button type="button" class="btn-remove-product"
+                                                        @onclick="@(() => EliminarProducto(detalle.codigoProducto))">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="5" class="text-right"><strong>Total:</strong></td>
+                                        <td><strong>@detallesFactura.Sum(d => d.subtotal).ToString("F2")</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-save"></i> @(editando ? "Actualizar Factura" : "Guardar Factura")
+                    </button>
+                    @if (editando)
+                    {
+                        <button type="button" class="btn-cancel" @onclick="CancelarEdicion">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    }
+                    <button type="button" class="btn-payment" @onclick="MostrarModalAbono">
+                        <i class="fas fa-money-bill-wave"></i> Registrar Abono
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+
+        @if (mostrarModalAbono)
+        {
+            <div class="modal-overlay">
+                <div class="payment-modal">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-money-bill-wave"></i> Registrar Abono</h3>
+                        <button @onclick="CerrarModalAbono" class="close-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <EditForm Model="abono" OnValidSubmit="GuardarAbono">
+                            <div class="input-group">
+                                <label><i class="fas fa-file-invoice"></i> Factura</label>
+                                <select @bind="selectedCodigoFactura" class="select-style">
+                                    <option disabled value="0">-- Seleccione factura pendiente --</option>
+                                    @if (facturas != null && facturas.Any())
+                                    {
+                                        foreach (var factura in facturas.OrderBy(f => f.codigoFactura))
+                                        {
+                                            <option value="@factura.codigoFactura">
+                                                Factura #@factura.codigoFactura - Saldo: @factura.saldo.ToString("C")
+                                            </option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option disabled value="0">No hay facturas pendientes</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="input-group">
+                                <label><i class="fas fa-receipt"></i> Total Factura</label>
+                                <input value="@totalFactura.ToString("C")" class="input-style" readonly />
+                            </div>
+
+                            <div class="input-group">
+                                <label><i class="fas fa-money-bill-alt"></i> Saldo Actual</label>
+                                <input value="@saldoActual.ToString("C")" class="input-style" readonly />
+                            </div>
+
+                            <div class="input-group">
+                                <label><i class="fas fa-hand-holding-usd"></i> Abono</label>
+                                <InputNumber @bind-Value="abono.montoAbono" class="input-style"
+                                             @oninput="ActualizarEstadoFactura" min="0" max="@saldoActual" />
+                                <ValidationMessage For="@(() => abono.montoAbono)" />
+                            </div>
+
+                            <div class="input-group">
+                                <label><i class="fas fa-info-circle"></i> Estado</label>
+                                <input value="@estadoFactura" class="input-style @(estadoFactura == "Pagado" ? "status-paid" : "status-pending")" readonly />
+                            </div>
+
+                            <div class="modal-actions">
+                                <button type="submit" class="btn-confirm-payment">
+                                    <i class="fas fa-check-circle"></i> @(estadoFactura == "Pagado" ? "Factura Pagada" : "Confirmar Abono")
+                                </button>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i> @errorMessage
+                                </div>
+                            }
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (activeTab == "historial")
+    {
+        <div class="invoice-card">
+            <div class="card-header">
+                <h3><i class="fas fa-history"></i> Historial de Facturas</h3>
+
+                <button class="btn-filter" @onclick="ToggleFiltros">
+                    <i class="fas fa-filter"></i> @(mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros")
+                </button>
+
+                @* <button class="download-button" @onclick="DescargarPdf">
+                    <i class="fas fa-file-pdf"></i> Descargar PDF
+                </button> *@
+            </div>
+
+            @if (mostrarFiltros)
+            {
+                <div class="filters-overlay" @onclick="() => mostrarFiltros = false">
+                    <div class="filters-panel-container" @onclick:stopPropagation>
+                        <div class="filters-panel">
+                            <div class="filters-header">
+                                <div class="header-content">
+                                    <i class="fas fa-filter"></i>
+                                    <h3>Filtrar Facturas</h3>
+                                    <button class="close-btn" @onclick="() => mostrarFiltros = false">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="filters-body">
+                                <div class="filter-section blue-panel">
+                                    <div class="section-title">
+                                        <i class="fas fa-sliders-h"></i> Filtros Principales
+                                    </div>
+                                    <div class="filters-grid">
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-user"></i> Cliente
+                                            </label>
+                                            <select @bind="filtroCodigoCliente" class="filter-select">
+                                                <option value="0">Todos los clientes</option>
+                                                @foreach (var c in clientes)
+                                                {
+                                                    <option value="@c.codigoCliente">@c.nombre @c.apellido</option>
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-calendar"></i> Fecha Desde
+                                            </label>
+                                            <div class="input-with-icon">
+                                                <input type="date" @bind="filtroFechaDesde" class="filter-input" />
+                                                <i class="fas fa-calendar-alt"></i>
+                                            </div>
+                                        </div>
+
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-calendar"></i> Fecha Hasta
+                                            </label>
+                                            <div class="input-with-icon">
+                                                <input type="date" @bind="filtroFechaHasta" class="filter-input" />
+                                                <i class="fas fa-calendar-alt"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="filter-section white-panel">
+                                    <div class="section-title">
+                                        <i class="fas fa-money-bill-wave"></i> Filtros Financieros
+                                    </div>
+                                    <div class="filters-grid">
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-dollar-sign"></i> Monto Mínimo
+                                            </label>
+                                            <div class="input-with-symbol">
+                                                <span class="input-symbol">$</span>
+                                                <input type="number" @bind="filtroMontoMinimo" min="0" step="0.01"
+                                                       class="filter-input with-symbol" placeholder="0.00" />
+                                            </div>
+                                        </div>
+
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-dollar-sign"></i> Monto Máximo
+                                            </label>
+                                            <div class="input-with-symbol">
+                                                <span class="input-symbol">$</span>
+                                                <input type="number" @bind="filtroMontoMaximo" min="0" step="0.01"
+                                                       class="filter-input with-symbol" placeholder="0.00" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="filter-section light-blue-panel">
+                                    <div class="section-title">
+                                        <i class="fas fa-cog"></i> Filtros Adicionales
+                                    </div>
+                                    <div class="filters-grid">
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-tag"></i> Tipo
+                                            </label>
+                                            <select @bind="filtroTipo" class="filter-select">
+                                                <option value="">Todos los tipos</option>
+                                                <option value="Contado">Contado</option>
+                                                <option value="Crédito">Crédito</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-info-circle"></i> Estado
+                                            </label>
+                                            <select @bind="filtroEstado" class="filter-select">
+                                                <option value="">Todos los estados</option>
+                                                <option value="Pagado">Pagado</option>
+                                                <option value="Pendiente">Pendiente</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-item">
+                                            <label class="filter-label">
+                                                <i class="fas fa-clock"></i> Solo Pendientes
+                                            </label>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" @bind="filtroSoloPendientes" />
+                                                <span class="toggle-slider round"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="filters-footer">
+                                <button class="btn btn-outline" @onclick="ResetearFiltros">
+                                    <i class="fas fa-undo"></i> Limpiar Filtros
+                                </button>
+                                <button class="btn btn-primary" @onclick="AplicarFiltros">
+                                    <i class="fas fa-check"></i> Aplicar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="metrics-panel">
+                <div class="metric-card total">
+                    <div class="metric-icon">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value">@totalFacturas</div>
+                        <div class="metric-label">Facturas totales</div>
+                        <div class="metric-trend @GetTrendClass(facturaTrend)">
+                            <i class="fas @(facturaTrend > 0 ? "fa-arrow-up" : "fa-arrow-down")"></i>
+                            @Math.Abs(facturaTrend)%
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card pending">
+                    <div class="metric-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value">@facturasPendientes</div>
+                        <div class="metric-label">Por cobrar</div>
+                        <div class="metric-amount">@totalPendiente.ToString("C")</div>
+                    </div>
+                </div>
+
+                <div class="metric-card paid">
+                    <div class="metric-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value">@facturasPagadas</div>
+                        <div class="metric-label">Pagadas</div>
+                        <div class="metric-subtext">Últimos 30 días: @facturasPagadasUltimoMes</div>
+                    </div>
+                </div>
+
+                <div class="metric-card revenue">
+                    <div class="metric-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value">@totalFacturado.ToString("C")</div>
+                        <div class="metric-label">Facturación total</div>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: @(porcentajePagado + "%")"></div>
+                            <span>@porcentajePagado% pagado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (facturas == null)
+            {
+                <div class="loading-container">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Cargando facturas...</p>
+                </div>
+            }
+            else if (facturas.Count == 0)
+            {
+                <div class="empty-state">
+                    <i class="fas fa-file-invoice"></i>
+                    <p>No hay facturas registradas</p>
+                </div>
+            }
+            else
+            {
+                <div class="invoices-table-container">
+                    <table class="invoices-table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-hashtag"></i> Código</th>
+                                <th><i class="fas fa-user"></i> Cliente</th>
+                                <th><i class="fas fa-calendar"></i> Fecha</th>
+                                <th><i class="fas fa-money-bill-wave"></i> Total</th>
+                                <th><i class="fas fa-wallet"></i> Saldo</th>
+                                <th><i class="fas fa-tag"></i> Tipo</th>
+                                <th><i class="fas fa-cog"></i> Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var f in facturas)
+                            {
+                                <tr>
+                                    <td>@f.codigoFactura</td>
+                                    <td>@(clientes.FirstOrDefault(c => c.codigoCliente == f.codigoCliente)?.nombre) @(clientes.FirstOrDefault(c => c.codigoCliente == f.codigoCliente)?.apellido)</td>
+                                    <td>@f.fecha.ToShortDateString()</td>
+                                    <td>@f.totalFactura.ToString("F2")</td>
+                                    <td class="@(f.saldo > 0 ? "text-warning" : "text-success")">@f.saldo.ToString("F2")</td>
+                                    <td><span class="badge @(f.tipo == "Contado" ? "badge-primary" : "badge-secondary")">@f.tipo</span></td>
+                                    <td class="actions-cell">
+                                        <button class="btn-edit" @onclick="() => EditarFactura(f)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-delete" @onclick="() => EliminarFactura(f.codigoFactura)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        @* <button class="btn btn-view" @onclick="() => MostrarDetalleFactura(factura.codigoFactura)" title="Ver detalle">
+                                            👁
+                                        </button> *@
+
+
+                                        <button class="btn btn-print" @onclick="() => DescargarPdfFactura(f)">
+                                            <i class="fas fa-print"></i> Imprimir
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+
+
+@code {
+
+
+    // Variables para los filtros
+    private bool mostrarFiltros = false;
+    private int filtroCodigoCliente = 0;
+    private DateTime? filtroFechaDesde;
+    private DateTime? filtroFechaHasta;
+    private decimal? filtroMontoMinimo;
+    private decimal? filtroMontoMaximo;
+    private string filtroTipo = "";
+    private string filtroEstado = "";
+    private bool filtroSoloPendientes = false;
+
+    private int totalFacturas = 0;
+    private int facturasPendientes = 0;
+    private int facturasPagadas = 0;
+    private int facturasPagadasUltimoMes = 0;
+    private decimal totalFacturado = 0;
+    private decimal totalPendiente = 0;
+    private decimal porcentajePagado = 0;
+    private int facturaTrend = 0;
+    private int totalPurchases = 0;
+    private int pendingInvoices = 0;
+    private int paidInvoices = 0;
+    private decimal totalAmount = 0.00m;
+    private List<Producto> productos = new();
+    private Producto productoSeleccionado = new();
+    private DetalleFactura detalleFactura = new();
+    private List<DetalleFactura> detallesFactura = new();
+
+    private bool mostrarModalAbono = false;
+    private Abono abono = new();
+
+    private List<Cliente> clientes = new();
+    private List<Factura> facturas;
+    private Factura factura = new Factura
+        {
+            fecha = DateTime.Today,
+            tipo = "Crédito" // Valor por defecto
+        };
+    private bool editando = false;
+    private string activeTab = "facturacion";
+
+    private bool mostrarModalExito = false;
+    private string mensajeExito = "";
+
+    private decimal totalFactura = 0;
+    private decimal saldoFactura = 0;
+    private decimal saldoActual = 0;
+    private int facturaSeleccionada = 0;
+    private string estadoFactura = "Pendiente";
+    private decimal montoFacturaSeleccionada;
+    private decimal saldoFacturaSeleccionada;
+
+    private Factura? facturaSelect;
+    private List<DetalleFactura> detalleFacturaSeleccionada = new ();
+
+
+    List<UnidadMedida> unidades = new()
+{
+    new UnidadMedida { IdUnidad = 1, Nombre = "Unidad" },
+    new UnidadMedida { IdUnidad = 2, Nombre = "Kilogramo" },
+    new UnidadMedida { IdUnidad = 3, Nombre = "Litro" },
+    new UnidadMedida { IdUnidad = 4, Nombre = "Metro" },
+    new UnidadMedida { IdUnidad = 5, Nombre = "Caja" },
+    new UnidadMedida { IdUnidad = 6, Nombre = "Lata" },
+    new UnidadMedida { IdUnidad = 7, Nombre = "Paquete" }
+};
+
+
+    private string mensaje = string.Empty;
+
+    private async Task CargarUnidades()
+    {
+        try
+        {
+            unidades = await Http.GetFromJsonAsync<List<UnidadMedida>>("api/UnidadMedida") ?? new();
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error al cargar unidades de medida: {ex.Message}";
+        }
+    }
+
+    private void ToggleFiltros()
+    {
+        mostrarFiltros = !mostrarFiltros;
+    }
+
+
+    private async Task AplicarFiltros()
+    {
+        try
+        {
+            // Construir URL con parámetros de filtro
+            var url = $"api/Factura/GetFacturasFiltradas?";
+
+            if (filtroCodigoCliente > 0)
+                url += $"codigoCliente={filtroCodigoCliente}&";
+
+            if (filtroFechaDesde.HasValue)
+                url += $"fechaDesde={filtroFechaDesde.Value:yyyy-MM-dd}&";
+
+            if (filtroFechaHasta.HasValue)
+                url += $"fechaHasta={filtroFechaHasta.Value:yyyy-MM-dd}&";
+
+            if (filtroMontoMinimo.HasValue)
+                url += $"montoMinimo={filtroMontoMinimo}&";
+
+            if (filtroMontoMaximo.HasValue)
+                url += $"montoMaximo={filtroMontoMaximo}&";
+
+            if (!string.IsNullOrEmpty(filtroTipo))
+                url += $"tipo={filtroTipo}&";
+
+            if (!string.IsNullOrEmpty(filtroEstado))
+                url += $"estado={filtroEstado}&";
+
+            if (filtroSoloPendientes)
+                url += $"pendientes=true&";
+
+            // Eliminar el último & si existe
+            if (url.EndsWith("&"))
+                url = url[..^1];
+
+            facturas = await Http.GetFromJsonAsync<List<Factura>>(url);
+            await CalcularMetricas();
+
+            // Cerrar el panel de filtros
+            mostrarFiltros = false;
+
+            // Activar la pestaña de historial si no está activa
+            if (activeTab != "historial")
+            {
+                activeTab = "historial";
+                // Opcional: desplazar la vista hacia la sección de historial
+                await JS.InvokeVoidAsync("scrollToElement", "historial-section");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al aplicar filtros: {ex.Message}");
+        }
+    }
+    private async Task ResetearFiltros()
+    {
+        filtroCodigoCliente = 0;
+        filtroFechaDesde = null;
+        filtroFechaHasta = null;
+        filtroMontoMinimo = null;
+        filtroMontoMaximo = null;
+        filtroTipo = "";
+        filtroEstado = "";
+        filtroSoloPendientes = false;
+
+        await CargarFacturas();
+    }
+
+    private void CerrarModalExito()
+    {
+        mostrarModalExito = false;
+    }
+
+    [Inject] private IJSRuntime JS { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUnidades();
+        await CargarProductos();
+        await CargarClientes();
+        await CargarFacturas();
+        await LoadSummaryData();
+        await CalcularMetricas();
+    }
+
+
+    private async Task CalcularMetricas()
+    {
+        var hoy = DateTime.Today;
+        var inicioMesActual = new DateTime(hoy.Year, hoy.Month, 1);
+        var inicioMesAnterior = inicioMesActual.AddMonths(-1);
+
+        var facturasMesActual = facturas.Where(f => f.fecha >= inicioMesActual).ToList();
+        var facturasMesAnterior = facturas.Where(f => f.fecha >= inicioMesAnterior && f.fecha < inicioMesActual).ToList();
+
+        totalFacturas = facturas.Count;
+        facturasPendientes = facturas.Count(f => f.estado == "Pendiente");
+        facturasPagadas = facturas.Count(f => f.estado == "Pagado");
+        facturasPagadasUltimoMes = facturas.Count(f => f.estado == "Pagado" && f.fecha >= inicioMesActual);
+
+        totalFacturado = facturas.Sum(f => f.totalFactura);
+        totalPendiente = facturas.Where(f => f.estado == "Pendiente").Sum(f => f.saldo);
+
+        porcentajePagado = totalFacturas > 0 ?
+            Math.Round((decimal)facturasPagadas / totalFacturas * 100, 1) : 0;
+
+        // Calcular tendencia
+        var countMesActual = facturasMesActual.Count;
+        var countMesAnterior = facturasMesAnterior.Count;
+
+        if (countMesAnterior > 0)
+        {
+            facturaTrend = (int)Math.Round(
+                ((decimal)(countMesActual - countMesAnterior) / countMesAnterior) * 100,
+                0
+            );
+        }
+
+        StateHasChanged();
+    }
+
+    private string GetTrendClass(int trend)
+    {
+        return trend >= 0 ? "trend-up" : "trend-down";
+    }
+
+    private async Task LoadSummaryData()
+    {
+        // Obtener datos de la API
+        var facturas = await Http.GetFromJsonAsync<List<Factura>>("api/Factura/GetAllFacturas") ?? new List<Factura>();
+
+        totalPurchases = facturas.Count;
+        pendingInvoices = facturas.Count(f => f.estado == "Pendiente");
+        paidInvoices = facturas.Count(f => f.estado == "Pagado");
+        totalAmount = facturas.Sum(f => f.totalFactura);
+    }
+
+    private async Task CargarProductos()
+    {
+        productos = await Http.GetFromJsonAsync<List<Producto>>("api/Producto/GetAllProductos")
+                    ?? new List<Producto>();
+    }
+
+    private async Task CargarClientes()
+    {
+        clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/Cliente/GetAllClientes")
+                   ?? new List<Cliente>();
+    }
+
+    // private async Task CargarFacturas()
+    // {
+    //     facturas = await Http.GetFromJsonAsync<List<Factura>>("api/Factura/GetAllFacturas")
+    //                ?? new List<Factura>();
+    // }
+
+    private void ProductoSeleccionado(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int codigoSeleccionado))
+        {
+            productoSeleccionado = productos.FirstOrDefault(p => p.codigoProducto == codigoSeleccionado) ?? new Producto();
+            detalleFactura.codigoProducto = productoSeleccionado.codigoProducto;
+            detalleFactura.precioUnitario = productoSeleccionado.costo;
+        }
+    }
+
+    private void AgregarProducto()
+    {
+        if (productoSeleccionado == null || productoSeleccionado.codigoProducto == 0 || detalleFactura.cantidad <= 0)
+            return;
+
+        if (string.IsNullOrWhiteSpace(detalleFactura.unidadMedida))
+        {
+            Console.WriteLine("Unidad de medida no seleccionada.");
+            return;
+        }
+
+        var detalleExistente = detallesFactura.FirstOrDefault(d => d.codigoProducto == productoSeleccionado.codigoProducto);
+
+        if (detalleExistente != null)
+        {
+            detalleExistente.cantidad += detalleFactura.cantidad;
+            detalleExistente.subtotal = detalleExistente.cantidad * detalleExistente.precioUnitario;
+        }
+        else
+        {
+            detallesFactura.Add(new DetalleFactura
+                {
+                    codigoProducto = productoSeleccionado.codigoProducto,
+                    cantidad = detalleFactura.cantidad,
+                    precioUnitario = productoSeleccionado.costo,
+                    subtotal = detalleFactura.cantidad * productoSeleccionado.costo,
+                    unidadMedida = detalleFactura.unidadMedida // ✅ Aquí va directamente el valor del select
+                });
+        }
+
+        factura.totalFactura = detallesFactura.Sum(d => d.subtotal);
+        factura.saldo = factura.totalFactura;
+    }
+
+
+
+    private void EliminarProducto(int codigoProducto)
+    {
+        var detalle = detallesFactura.FirstOrDefault(d => d.codigoProducto == codigoProducto);
+        if (detalle != null)
+        {
+            detallesFactura.Remove(detalle);
+            factura.totalFactura = detallesFactura.Sum(d => d.subtotal);
+            factura.saldo = factura.totalFactura;
+        }
+    }
+
+    private async Task GuardarFactura()
+    {
+        try
+        {
+            // Validaciones básicas (las mismas que antes)
+            if (factura.codigoCliente == 0)
+            {
+                await JS.InvokeVoidAsync("alert", "Debe seleccionar un cliente");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(factura.tipo))
+            {
+                await JS.InvokeVoidAsync("alert", "Debe seleccionar un tipo de factura");
+                return;
+            }
+
+            if (!detallesFactura.Any())
+            {
+                await JS.InvokeVoidAsync("alert", "Debe agregar al menos un producto a la factura");
+                return;
+            }
+
+            // Cálculos (los mismos que antes)
+            factura.totalFactura = detallesFactura.Sum(d => d.cantidad * d.precioUnitario);
+            factura.saldo = factura.tipo == "Contado" ? 0 : factura.totalFactura;
+            factura.estado = factura.tipo == "Contado" ? "Pagado" : "Pendiente";
+
+            var facturaConDetalles = new FacturaConDetalles
+                {
+                    Factura = factura,
+                    Detalles = detallesFactura
+                };
+
+            HttpResponseMessage response;
+
+            if (editando)
+            {
+                response = await Http.PutAsJsonAsync($"api/Factura/ActualizarFactura/{factura.codigoFactura}", facturaConDetalles);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    await CargarFacturas();
+                    LimpiarFormulario();
+                    CambiarTab("historial");
+                    mensajeExito = "Factura actualizada exitosamente";
+                    mostrarModalExito = true;
+                }
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/Factura/AgregarFactura", facturaConDetalles);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<FacturaResponse>();
+                    factura.codigoFactura = result.codigoFactura;
+
+                    await CargarFacturas();
+                    LimpiarFormulario();
+                    CambiarTab("historial");
+                    mensajeExito = result.message ?? "Factura registrada exitosamente";
+                    mostrarModalExito = true;
+                }
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+
+                try
+                {
+                    // Usando Newtonsoft.Json para parsear el error
+                    var errorObj = JsonDocument.Parse(errorContent);
+                    if (errorObj.RootElement.TryGetProperty("errors", out var errors))
+                    {
+                        var errorMessages = new List<string>();
+                        foreach (var error in errors.EnumerateArray())
+                        {
+                            errorMessages.Add(error.GetString());
+                        }
+                        await JS.InvokeVoidAsync("alert", $"Errores de validación:\n{string.Join("\n", errorMessages)}");
+                    }
+                    else
+                    {
+                        await JS.InvokeVoidAsync("alert", $"Error al guardar: {errorContent}");
+                    }
+                }
+                catch
+                {
+                    await JS.InvokeVoidAsync("alert", $"Error al guardar: {errorContent}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error crítico: {ex.Message}");
+        }
+    }
+
+    private void LimpiarFormulario()
+    {
+        factura = new Factura();
+        detallesFactura = new List<DetalleFactura>();
+        productoSeleccionado = new Producto();
+        detalleFactura = new DetalleFactura();
+        editando = false;
+    }
+
+    private void MostrarModalAbono()
+    {
+        abono = new Abono { fechaAbono = DateTime.Today };
+        mostrarModalAbono = true;
+    }
+
+    private void CerrarModalAbono() => mostrarModalAbono = false;
+    //
+    private string errorMessage;
+    private async Task GuardarAbono()
+    {
+        try
+        {
+            // Validaciones básicas
+            if (abono.codigoFactura == 0)
+            {
+                errorMessage = "Debe seleccionar una factura válida.";
+                return;
+            }
+
+            if (abono.montoAbono <= 0)
+            {
+                errorMessage = "El monto del abono debe ser mayor que cero.";
+                return;
+            }
+
+            if (abono.montoAbono > saldoActual)
+            {
+                errorMessage = "El monto del abono excede el saldo pendiente.";
+                return;
+            }
+
+            // Configurar fecha del abono
+            abono.fechaAbono = DateTime.Now;
+
+            // Registrar el abono en la base de datos
+            var response = await Http.PostAsJsonAsync("api/abono/registrar-abono", abono);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Actualizar los valores locales
+                saldoActual -= abono.montoAbono;
+                estadoFactura = saldoActual <= 0 ? "Pagado" : "Pendiente";
+
+                // Actualizar la lista de facturas (remover si está pagada)
+                if (estadoFactura == "Pagado")
+                {
+                    facturas.RemoveAll(f => f.codigoFactura == abono.codigoFactura);
+                }
+                else
+                {
+                    // Actualizar el saldo en la lista de facturas
+                    var factura = facturas.FirstOrDefault(f => f.codigoFactura == abono.codigoFactura);
+                    if (factura != null)
+                    {
+                        factura.saldo = saldoActual;
+                    }
+                }
+
+                // Mostrar mensaje de éxito
+                mensajeExito = "Abono registrado exitosamente";
+                mostrarModalExito = true;
+
+                // Limpiar el formulario
+                abono = new Abono();
+
+                // Forzar actualización de la UI
+                StateHasChanged();
+
+                // Cerrar el modal después de 2 segundos
+                await Task.Delay(2000);
+                mostrarModalExito = false;
+                mostrarModalAbono = false;
+            }
+            else
+            {
+                errorMessage = await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al registrar el abono: {ex.Message}";
+        }
+    }
+    private int selectedCodigoFactura
+    {
+        get => abono.codigoFactura;
+        set
+        {
+            if (abono.codigoFactura != value)
+            {
+                abono.codigoFactura = value;
+                _ = OnFacturaSeleccionada(value);
+            }
+        }
+    }
+
+    private async Task OnFacturaSeleccionada(int codigoFactura)
+    {
+        try
+        {
+            var factura = await Http.GetFromJsonAsync<Factura>($"api/factura/GetFacturaPorCodigo/{codigoFactura}");
+
+            if (factura != null)
+            {
+                totalFactura = factura.totalFactura;
+                saldoActual = factura.saldo;
+
+                // Determinar estado (considerando que algunos registros podrían no tener el campo estado)
+                estadoFactura = factura.saldo <= 0 ? "Pagado" :
+                              !string.IsNullOrEmpty(factura.estado) ? factura.estado : "Pendiente";
+
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener factura: {ex.Message}");
+        }
+    }
+
+
+
+    private void ActualizarEstadoFactura(ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out decimal montoAbono))
+        {
+            abono.montoAbono = montoAbono;
+            var nuevoSaldo = saldoActual - abono.montoAbono;
+            estadoFactura = nuevoSaldo <= 0 ? "Pagado" : "Pendiente";
+            StateHasChanged();
+        }
+    }
+
+
+    // private async Task CargarFacturas()
+    // {
+    //     facturas = await Http.GetFromJsonAsync<List<Factura>>("api/factura/GetAllFacturas");
+    // }
+
+    private async Task CargarFacturas()
+    {
+        try
+        {
+            // Cargar todas las facturas sin filtrar
+            facturas = await Http.GetFromJsonAsync<List<Factura>>("api/factura/GetAllFacturas")
+                       ?? new List<Factura>();
+
+            // Opcional: Ordenar por fecha descendente
+            facturas = facturas.OrderByDescending(f => f.fecha).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar facturas: {ex.Message}");
+            facturas = new List<Factura>();
+            await JS.InvokeVoidAsync("alert", "Error al cargar el historial de facturas");
+        }
+    }
+
+
+
+    private void EditarFactura(Factura f)
+    {
+        factura = new Factura
+            {
+                codigoFactura = f.codigoFactura,
+                codigoCliente = f.codigoCliente,
+                fecha = f.fecha,
+                totalFactura = f.totalFactura,
+                saldo = f.saldo,
+                tipo = f.tipo
+            };
+        editando = true;
+    }
+
+    private void CancelarEdicion()
+    {
+        LimpiarFormulario();
+    }
+
+    private async Task EliminarFactura(int codigo)
+    {
+        var confirm = await JS.InvokeAsync<bool>("confirm", $"¿Estás seguro de eliminar la factura #{codigo}?");
+        if (confirm)
+        {
+            var response = await Http.DeleteAsync($"api/Factura/EliminarFactura/{codigo}");
+            if (response.IsSuccessStatusCode)
+            {
+                await CargarFacturas();
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadFromJsonAsync<dynamic>();
+                // Mostrar mensaje de error al usuario
+            }
+        }
+    }
+
+    private void CambiarTab(string tab) => activeTab = tab;
+    private string GetTabClass(string tab) => tab == activeTab ? "btn-primary" : "btn-outline-primary";
+
+    public class FacturaConDetalles
+    {
+        public Factura Factura { get; set; }
+        public List<DetalleFactura> Detalles { get; set; }
+    }
+
+    
+
+    public class FacturaResponse
+    {
+        public int codigoFactura { get; set; }
+        public string message { get; set; }
+    }
+
+    private async Task UpdateSummary()
+    {
+        var facturas = await Http.GetFromJsonAsync<List<Factura>>("api/Factura/GetAllFacturas") ?? new List<Factura>();
+
+        totalPurchases = facturas.Count;
+        pendingInvoices = facturas.Count(f => f.estado == "Pendiente");
+        paidInvoices = facturas.Count(f => f.estado == "Pagado");
+        totalAmount = facturas.Sum(f => f.totalFactura);
+
+        StateHasChanged(); // Forzar actualización de la UI
+    }
+
+
+    private async Task DescargarPdfFactura(Factura factura)
+    {
+        try
+        {
+            // Usa el código de la factura pasada como parámetro
+            int codigoFactura = factura.codigoFactura;
+            string apiUrl = $"api/Factura/DescargarReporteFactura/{codigoFactura}";
+
+            // 1. Descargar el PDF desde la API
+            var response = await Http.GetAsync(apiUrl);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Error al descargar el PDF: " + response.StatusCode);
+                return;
+            }
+
+            // 2. Guardar el PDF en la carpeta caché del dispositivo
+            var pdfStream = await response.Content.ReadAsStreamAsync();
+            var cacheDir = FileSystem.CacheDirectory;
+            var fileName = $"Factura_{codigoFactura}.pdf";
+            var filePath = Path.Combine(cacheDir, fileName);
+
+            using (var fileStream = File.Create(filePath))
+            {
+                await pdfStream.CopyToAsync(fileStream);
+            }
+
+            // 3. Abrir el archivo con la aplicación predeterminada (PDF viewer)
+            await Launcher.Default.OpenAsync(new OpenFileRequest
+                {
+                    File = new ReadOnlyFile(filePath)
+                });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inesperado: {ex.Message}");
+            await JSV.InvokeVoidAsync("alert", "No se pudo descargar el PDF de la factura");
+        }
+    }
+
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JSV { get; set; }
+
+
+  
+
+
+
+
+
+
+
+
+}
+<style>
+    /* Variables y colores */
+    :root {
+        --primary-color: #1976D2;
+        --primary-dark: #1565C0;
+        --primary-light: #E3F2FD;
+        --secondary-color: #FFA000;
+        --success-color: #4CAF50;
+        --danger-color: #F44336;
+        --warning-color: #FFC107;
+        --text-color: #333;
+        --text-light: #777;
+        --border-color: #E0E0E0;
+        --bg-color: #F5F9FF;
+        --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Estructura principal */
+    .invoice-container {
+        font-family: 'Segoe UI', 'Roboto', sans-serif;
+        color: var(--text-color);
+        background-color: var(--bg-color);
+        min-height: 100vh;
+        padding: 15px;
+        box-sizing: border-box;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* Encabezado y pestañas */
+    .invoice-header {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+        .invoice-header h2 {
+            color: var(--primary-dark);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+    .invoice-tabs {
+        display: flex;
+        gap: 5px;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 5px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+        .invoice-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .invoice-tabs button {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-light);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+            .invoice-tabs button i {
+                font-size: 14px;
+            }
+
+            .invoice-tabs button.active {
+                color: var(--primary-color);
+                background-color: var(--primary-light);
+                position: relative;
+            }
+
+                .invoice-tabs button.active::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -7px;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    background: var(--primary-color);
+                }
+
+    /* Tarjetas principales */
+    .invoice-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: var(--card-shadow);
+        padding: 15px;
+        margin-bottom: 20px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+        .card-header h3 {
+            color: var(--primary-dark);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+    /* Formularios y entradas */
+    .form-section {
+        margin-bottom: 20px;
+    }
+
+        .form-section h4 {
+            color: var(--primary-dark);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1rem;
+        }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .product-form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .input-group {
+        margin-bottom: 12px;
+        width: 100%;
+    }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+            .input-group label i {
+                font-size: 13px;
+                color: var(--primary-color);
+            }
+
+    .input-style, .select-style {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s;
+        background-color: white;
+        box-sizing: border-box;
+    }
+
+        .input-style:focus, .select-style:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+
+    /* Buscador */
+    .search-box {
+        position: relative;
+        width: 100%;
+        max-width: 300px;
+    }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+
+            .search-box input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+            }
+
+    /* Divisores */
+    .divider-blue {
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--primary-color), transparent);
+        margin: 20px 0;
+        opacity: 0.3;
+    }
+
+    /* Botones */
+    .btn-add-product {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background-color 0.3s;
+        height: 40px;
+        margin-bottom: 12px;
+        width: 100%;
+        justify-content: center;
+    }
+
+        .btn-add-product:hover {
+            background-color: var(--primary-dark);
+        }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 25px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .btn-save, .btn-cancel, .btn-payment {
+        flex: 1;
+        min-width: 120px;
+        box-sizing: border-box;
+    }
+
+    .btn-save {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 12px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background-color 0.3s;
+    }
+
+        .btn-save:hover {
+            background-color: var(--primary-dark);
+        }
+
+    .btn-cancel {
+        background-color: #f5f5f5;
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 12px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.3s;
+    }
+
+        .btn-cancel:hover {
+            background-color: #e0e0e0;
+        }
+
+    .btn-payment {
+        background-color: var(--success-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 12px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background-color 0.3s;
+        margin-left: 0;
+    }
+
+        .btn-payment:hover {
+            background-color: #3d8b40;
+        }
+
+    /* Tablas */
+    .products-table-container, .invoices-table-container {
+        overflow-x: auto;
+        margin-top: 15px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    .products-table, .invoices-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+        .products-table th, .invoices-table th {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: 500;
+            padding: 12px;
+            text-align: left;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .products-table td, .invoices-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+        }
+
+        .products-table tr:hover, .invoices-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .products-table tfoot td {
+            font-weight: 500;
+            background-color: #f5f5f5;
+        }
+
+    /* Acciones de tabla */
+    .btn-remove-product, .btn-edit, .btn-delete {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        font-size: 14px;
+    }
+
+    .btn-remove-product {
+        color: var(--danger-color);
+    }
+
+        .btn-remove-product:hover {
+            background-color: #ffebee;
+        }
+
+    .btn-edit {
+        color: var(--primary-color);
+    }
+
+        .btn-edit:hover {
+            background-color: var(--primary-light);
+        }
+
+    .btn-delete {
+        color: var(--danger-color);
+    }
+
+        .btn-delete:hover {
+            background-color: #ffebee;
+        }
+
+    .actions-cell {
+        display: flex;
+        gap: 6px;
+    }
+
+    /* Textos y alineaciones */
+    .text-right {
+        text-align: right;
+    }
+
+    .text-warning {
+        color: var(--warning-color);
+        font-weight: 500;
+    }
+
+    .text-success {
+        color: var(--success-color);
+        font-weight: 500;
+    }
+
+    /* Badges */
+    .badge {
+        padding: 3px 6px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    .badge-primary {
+        background-color: var(--primary-light);
+        color: var(--primary-dark);
+    }
+
+    .badge-secondary {
+        background-color: #FFF3E0;
+        color: #E65100;
+    }
+
+    /* Estados */
+    .status-paid {
+        color: var(--success-color);
+        font-weight: 500;
+    }
+
+    .status-pending {
+        color: var(--warning-color);
+        font-weight: 500;
+    }
+
+    /* Modal de pago */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 15px;
+        box-sizing: border-box;
+    }
+
+    .payment-modal {
+        background-color: white;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+    }
+
+    .modal-header {
+        padding: 15px;
+        background-color: var(--primary-color);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .modal-header h3 {
+            margin: 0;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+        }
+
+    .close-modal {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 5px;
+    }
+
+    .modal-body {
+        padding: 15px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 20px;
+        gap: 10px;
+    }
+
+    .btn-confirm-payment {
+        background-color: var(--success-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 15px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s;
+    }
+
+        .btn-confirm-payment:hover {
+            background-color: #3d8b40;
+        }
+
+    /* Mensajes y estados */
+    .error-message {
+        background-color: #ffebee;
+        color: var(--danger-color);
+        padding: 10px 12px;
+        border-radius: 6px;
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .loading-container, .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 15px;
+        color: var(--text-light);
+        text-align: center;
+    }
+
+        .loading-container i {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: var(--primary-color);
+        }
+
+        .empty-state i {
+            font-size: 32px;
+            margin-bottom: 12px;
+            color: var(--primary-light);
+        }
+
+    /* Tarjetas de resumen */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        transition: transform 0.3s ease;
+    }
+
+        .summary-card:hover {
+            transform: translateY(-3px);
+        }
+
+    .summary-icon {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 10px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+        .summary-icon.total {
+            background-color: rgba(26, 46, 90, 0.1);
+            color: #1A2E5A;
+        }
+
+        .summary-icon.pending {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: #FFC107;
+        }
+
+        .summary-icon.paid {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+        }
+
+        .summary-icon.amount {
+            background-color: rgba(227, 6, 19, 0.1);
+            color: #E30613;
+        }
+
+    .summary-value {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #1A2E5A;
+        margin-bottom: 5px;
+    }
+
+    .summary-label {
+        font-size: 0.85rem;
+        color: #666;
+        font-weight: 500;
+    }
+
+    /* Panel de métricas */
+    .metrics-panel {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        border-left: 4px solid;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.2rem;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        color: #64748B;
+        font-weight: 500;
+        margin-bottom: 0.3rem;
+    }
+
+    .metric-subtext, .metric-amount {
+        font-size: 0.75rem;
+        color: #94A3B8;
+        font-weight: 400;
+    }
+
+    .metric-trend {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 10px;
+        display: inline-block;
+        margin-top: 0.3rem;
+    }
+
+    /* Barras de progreso */
+    .progress-container {
+        margin-top: 0.5rem;
+        height: 4px;
+        background: #F1F5F9;
+        border-radius: 2px;
+        position: relative;
+    }
+
+    .progress-bar {
+        height: 100%;
+        border-radius: 2px;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    /* Estilos específicos para tarjetas de métricas */
+    .metric-card.total {
+        border-left-color: #3B82F6;
+    }
+
+        .metric-card.total .metric-icon {
+            background-color: #EFF6FF;
+            color: #3B82F6;
+        }
+
+        .metric-card.total .metric-value {
+            color: #1E40AF;
+        }
+
+    .metric-card.pending {
+        border-left-color: #F59E0B;
+    }
+
+        .metric-card.pending .metric-icon {
+            background-color: #FEF3C7;
+            color: #F59E0B;
+        }
+
+        .metric-card.pending .metric-value {
+            color: #92400E;
+        }
+
+        .metric-card.pending .progress-bar {
+            background-color: #F59E0B;
+        }
+
+    .metric-card.paid {
+        border-left-color: #10B981;
+    }
+
+        .metric-card.paid .metric-icon {
+            background-color: #D1FAE5;
+            color: #10B981;
+        }
+
+        .metric-card.paid .metric-value {
+            color: #065F46;
+        }
+
+    .metric-card.revenue {
+        border-left-color: #8B5CF6;
+    }
+
+        .metric-card.revenue .metric-icon {
+            background-color: #EDE9FE;
+            color: #8B5CF6;
+        }
+
+        .metric-card.revenue .metric-value {
+            color: #5B21B6;
+        }
+
+        .metric-card.revenue .progress-bar {
+            background-color: #8B5CF6;
+        }
+
+    /* Indicadores de tendencia */
+    .trend-up {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+
+    .trend-down {
+        background-color: #FEE2E2;
+        color: #B91C1C;
+    }
+
+    /* Media queries responsive */
+    @@media (min-width: 480px) {
+        .summary-cards
+
+    {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .metrics-panel {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    }
+
+    @@media (min-width: 768px) {
+        .invoice-container
+
+    {
+        padding: 20px;
+    }
+
+    .summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .metrics-panel {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .form-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+
+    .product-form-grid {
+        grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    }
+
+    .form-actions {
+        justify-content: flex-start;
+    }
+
+    .btn-payment {
+        margin-left: auto;
+    }
+
+    }
+
+    @@media (min-width: 992px) {
+        .invoice-container
+
+    {
+        padding: 25px;
+    }
+
+    }
+</style>

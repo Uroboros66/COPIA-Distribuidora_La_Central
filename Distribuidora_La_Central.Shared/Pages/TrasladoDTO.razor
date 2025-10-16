@@ -1,0 +1,504 @@
+﻿@page "/TrasladoDTO"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using Distribuidora_La_Central.Shared.Models
+@using System.Text.Json
+
+<style>
+  
+    :root {
+        --primary-blue: #1a4b8c;
+        --secondary-blue: #2a6fd6;
+        --light-blue: #e6f0fa;
+        --accent-orange: #ff6b35;
+        --success-green: #28a745;
+        --warning-yellow: #ffc107;
+        --dark-gray: #343a40;
+        --light-gray: #f8f9fa;
+    }
+
+    .card-custom {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header-custom {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+        color: white;
+        border-radius: 10px 10px 0 0 !important;
+        padding: 1.5rem;
+    }
+
+    .btn-primary-custom {
+        background-color: var(--secondary-blue);
+        border: none;
+        padding: 10px 25px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-primary-custom:hover {
+            background-color: var(--primary-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+    .form-control-custom {
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 10px 15px;
+        transition: all 0.3s ease;
+    }
+
+        .form-control-custom:focus {
+            border-color: var(--secondary-blue);
+            box-shadow: 0 0 0 0.2rem rgba(42, 111, 214, 0.25);
+        }
+
+    .table-custom {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    }
+
+        .table-custom thead {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+            color: white;
+        }
+
+        .table-custom tbody tr:hover {
+            background-color: var(--light-blue);
+        }
+
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.8rem;
+    }
+
+    .status-pendiente {
+        background-color: var(--warning-yellow);
+        color: var(--dark-gray);
+    }
+
+    .status-completado {
+        background-color: var(--success-green);
+        color: white;
+    }
+
+    .status-cancelado {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .section-title {
+        color: var(--primary-blue);
+        border-bottom: 2px solid var(--light-blue);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+
+    .loading-container {
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .spinner-custom {
+        color: var(--secondary-blue);
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+
+<div class="container-fluid px-4 py-4">
+    <div class="card card-custom">
+        <div class="card-header card-header-custom">
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="m-0 text-white">
+                    <i class="fas fa-truck-moving mr-2"></i>Gestión de Traslados
+                </h3>
+                <span class="badge bg-white text-primary">v2.0</span>
+            </div>
+        </div>
+
+        <div class="card-body bg-white">
+            <!-- Formulario -->
+            <div class="mb-5">
+                <h4 class="section-title">Registrar Nuevo Traslado</h4>
+                <EditForm Model="@nuevoTraslado" OnValidSubmit="@RegistrarTraslado">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="alert alert-danger" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Producto</label>
+                            <select class="form-control form-control-custom" @onchange="ProductoSeleccionado">
+                                <option value="">-- Seleccione un producto --</option>
+                                @if (productos != null && productos.Any())
+                                {
+                                    @foreach (var prod in productos)
+                                    {
+                                        <option value="@prod.codigoProducto">@prod.descripcion</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cantidad</label>
+                            <InputNumber class="form-control form-control-custom" @bind-Value="nuevoTraslado.cantidad" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bodega Origen</label>
+                            <select class="form-control form-control-custom" @bind="nuevoTraslado.idBodegaOrigen">
+                                <option value="">-- Seleccione la bodega de origen --</option>
+                                @if (bodegas != null && bodegas.Any())
+                                {
+                                    @foreach (var bodega in bodegas)
+                                    {
+                                        <option value="@bodega.idBodega">@bodega.nombre</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bodega Destino</label>
+                            <select class="form-control form-control-custom" @bind="nuevoTraslado.idBodegaDestino">
+                                <option value="">-- Seleccione la bodega de destino --</option>
+                                @if (bodegas != null && bodegas.Any())
+                                {
+                                    @foreach (var bodega in bodegas)
+                                    {
+                                        <option value="@bodega.idBodega">@bodega.nombre</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Fecha Traslado</label>
+                            <InputDate class="form-control form-control-custom" @bind-Value="nuevoTraslado.fechaTraslado" />
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Realizado Por</label>
+                            <select class="form-control form-control-custom" @bind="nuevoTraslado.realizadoPor">
+                                <option value="">-- Seleccione un usuario --</option>
+                                @if (usuarios != null && usuarios.Any())
+                                {
+                                    @foreach (var usuario in usuarios)
+                                    {
+                                        <option value="@usuario.idUsuario">@usuario.nombre (@usuario.rol)</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Estado</label>
+                            <InputSelect class="form-control form-control-custom" @bind-Value="nuevoTraslado.estado">
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Completado">Completado</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary-custom">
+                            <i class="fas fa-save mr-2"></i>Registrar Traslado
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Lista de traslados -->
+            <div class="mt-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="section-title m-0">Historial de Traslados</h4>
+                    <button class="btn btn-sm btn-outline-primary" @onclick="CargarTraslados">
+                        <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                    </button>
+                </div>
+
+                @if (traslados == null)
+                {
+                    <div class="loading-container">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-custom" role="status">
+                                <span class="sr-only">Cargando...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando historial de traslados...</p>
+                        </div>
+                    </div>
+                }
+                else if (!traslados.Any())
+                {
+                    <div class="text-center py-5 bg-light rounded">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No hay traslados registrados</h5>
+                        <p class="text-muted">Comience registrando un nuevo traslado</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Producto</th>
+                                    <th>Origen</th>
+                                    <th>Destino</th>
+                                    <th>Cantidad</th>
+                                    <th>Fecha</th>
+                                    <th>Usuario</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in traslados)
+                                {
+                                    var usuario = usuarios?.FirstOrDefault(u => u.idUsuario == t.realizadoPor);
+                                    var producto = productos?.FirstOrDefault(p => p.codigoProducto == t.codigoProducto);
+                                    var bodegaOrigen = bodegas?.FirstOrDefault(b => b.idBodega == t.idBodegaOrigen);
+                                    var bodegaDestino = bodegas?.FirstOrDefault(b => b.idBodega == t.idBodegaDestino);
+
+                                    <tr>
+                                        <td class="font-weight-bold">#@t.idTraslado</td>
+                                        <td>@(producto?.descripcion ?? t.codigoProducto.ToString())</td>
+                                        <td>@(bodegaOrigen?.nombre ?? t.idBodegaOrigen.ToString())</td>
+                                        <td>@(bodegaDestino?.nombre ?? t.idBodegaDestino.ToString())</td>
+                                        <td>@t.cantidad</td>
+                                        <td>@t.fechaTraslado?.ToString("dd/MM/yyyy")</td>
+                                        <td>@(usuario?.nombre ?? t.realizadoPor.ToString())</td>
+                                        <td>
+                                            <span class="status-badge @GetStatusClass(t.estado)">
+                                                @t.estado
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Usuario> usuarios = new();
+    private List<Producto> productos = new();
+    private List<TrasladoModel> traslados = new();
+    private List<Bodega> bodegas = new();
+
+    private TrasladoModel nuevoTraslado = new()
+        {
+            fechaTraslado = DateTime.Now,
+            estado = "Pendiente"
+        };
+
+    private string GetStatusClass(string estado)
+    {
+        return estado switch
+        {
+            "Completado" => "status-completado",
+            "Cancelado" => "status-cancelado",
+            _ => "status-pendiente"
+        };
+    }
+
+    private void ProductoSeleccionado(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int codigoSeleccionado))
+        {
+            var producto = productos?.FirstOrDefault(p => p.codigoProducto == codigoSeleccionado);
+            if (producto != null)
+            {
+                nuevoTraslado.codigoProducto = producto.codigoProducto;
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ObtenerBodegas();
+        await CargarTraslados();
+        await CargarProductos();
+        await CargarUsuarios();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try
+        {
+            var response = await Http.GetStringAsync("api/Usuario/obtener-todos");
+            if (!string.IsNullOrEmpty(response))
+            {
+                usuarios = JsonSerializer.Deserialize<List<Usuario>>(response) ?? new List<Usuario>();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error cargando usuarios: {ex.Message}");
+        }
+    }
+
+    private async Task CargarProductos()
+    {
+        try
+        {
+            var response = await Http.GetStringAsync("api/Producto/GetAllProductos");
+            if (!string.IsNullOrEmpty(response))
+            {
+                productos = JsonSerializer.Deserialize<List<Producto>>(response) ?? new List<Producto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al cargar productos: {ex.Message}");
+        }
+    }
+
+    private async Task ObtenerBodegas()
+    {
+        try
+        {
+            var response = await Http.GetStringAsync("api/Bodega/obtener-todos");
+            if (!string.IsNullOrEmpty(response))
+            {
+                bodegas = JsonSerializer.Deserialize<List<Bodega>>(response) ?? new List<Bodega>();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error cargando bodegas: {ex.Message}");
+        }
+    }
+
+    private async Task CargarTraslados()
+    {
+        try
+        {
+            traslados = await Http.GetFromJsonAsync<List<TrasladoModel>>("api/Traslado/GetTodosLosTraslados") ?? new List<TrasladoModel>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error cargando traslados: {ex.Message}");
+        }
+    }
+    public class ErrorResponse
+    {
+        public string Message { get; set; }
+        public Dictionary<string, string[]> Errors { get; set; }
+    }
+
+    private async Task RegistrarTraslado()
+    {
+        try
+        {
+            // Validaciones adicionales antes de enviar
+            if (nuevoTraslado.idBodegaOrigen == nuevoTraslado.idBodegaDestino)
+            {
+                await JS.InvokeVoidAsync("alert", "La bodega origen y destino deben ser diferentes");
+                return;
+            }
+
+            if (nuevoTraslado.cantidad <= 0)
+            {
+                await JS.InvokeVoidAsync("alert", "La cantidad debe ser mayor que cero");
+                return;
+            }
+
+            // Verificar stock disponible (necesitarías un método API para esto)
+            var stockResponse = await Http.GetFromJsonAsync<int>($"api/Inventario/StockDisponible?productoId={nuevoTraslado.codigoProducto}&bodegaId={nuevoTraslado.idBodegaOrigen}");
+
+            if (stockResponse < nuevoTraslado.cantidad)
+            {
+                await JS.InvokeVoidAsync("alert", $"No hay suficiente stock en la bodega origen. Stock disponible: {stockResponse}");
+                return;
+            }
+
+            var response = await Http.PostAsJsonAsync("api/Traslado/PostTraslado", nuevoTraslado);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("Swal.fire",
+                    "Éxito",
+                    "Traslado registrado correctamente",
+                    "success");
+
+                // Resetear formulario
+                nuevoTraslado = new TrasladoModel
+                    {
+                        fechaTraslado = DateTime.Now,
+                        estado = "Pendiente"
+                    };
+
+                await CargarTraslados();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                var errorDetails = JsonSerializer.Deserialize<ErrorResponse>(errorContent);
+
+                await JS.InvokeVoidAsync("Swal.fire",
+                    "Error",
+                    errorDetails?.Message ?? "Error al registrar el traslado",
+                    "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("Swal.fire",
+                "Error",
+                $"Error registrando traslado: {ex.Message}",
+                "error");
+        }
+    }
+
+    // Clase para manejar respuestas de error
+   
+
+    public class Usuario
+    {
+        public int idUsuario { get; set; }
+        public string nombre { get; set; } = string.Empty;
+        public string rol { get; set; } = string.Empty;
+        public string codigoAcceso { get; set; } = string.Empty;
+    }
+
+    public class Bodega
+    {
+        public int idBodega { get; set; }
+        public string nombre { get; set; } = string.Empty;
+        public string ubicacion { get; set; } = string.Empty;
+        public int responsable { get; set; }
+        public DateTime fecha { get; set; }
+    }
+
+    public class TrasladoModel
+    {
+        public int idTraslado { get; set; }
+        public int codigoProducto { get; set; }
+        public int idBodegaOrigen { get; set; }
+        public int idBodegaDestino { get; set; }
+        public int cantidad { get; set; }
+        public DateTime? fechaTraslado { get; set; }
+        public int realizadoPor { get; set; }
+        public string estado { get; set; } = "Pendiente";
+    }
+}

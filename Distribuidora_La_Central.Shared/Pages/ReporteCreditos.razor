@@ -1,0 +1,245 @@
+@page "/reporte-creditos"
+@inject HttpClient Http
+@using Distribuidora_La_Central.Shared.Models
+
+<style>
+    /* Estilos generales */
+    .reporte-container {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+    }
+
+    /* Encabezado */
+    .reporte-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #0d6efd;
+    }
+
+    .reporte-title {
+        color: #0d6efd;
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    /* Barra de búsqueda */
+    .search-container {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+        .search-input:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+    /* Botón de descarga */
+    .download-button {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .download-button:hover {
+            background-color: #0b5ed7;
+        }
+
+    /* Tabla */
+    .table-container {
+        overflow-x: auto;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+        .data-table thead {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .data-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .data-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .data-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .data-table tr:hover {
+            background-color: #e9ecef;
+        }
+
+    /* Estilos para estado */
+    .estado-activo {
+        color: #198754;
+        font-weight: 500;
+    }
+
+    .estado-inactivo {
+        color: #dc3545;
+        font-weight: 500;
+    }
+
+    /* Mensajes */
+    .loading-message, .no-data-message {
+        text-align: center;
+        padding: 30px;
+        color: #6c757d;
+        font-size: 1.1rem;
+    }
+
+    /* Responsive para móviles */
+    @@media (max-width: 768px) {
+        .reporte-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .reporte-title {
+            font-size: 1.5rem;
+        }
+
+        .download-button {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .data-table th, .data-table td {
+            padding: 8px 10px;
+            font-size: 0.9rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .reporte-container {
+            padding: 15px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 6px 8px;
+            font-size: 0.85rem;
+        }
+    }
+</style>
+
+<div class="reporte-container">
+    <div class="reporte-header">
+        <h3 class="reporte-title">Reporte de Créditos</h3>
+    </div>
+
+    <div class="search-container">
+        <input @bind="filtro" placeholder="Buscar..." class="search-input" />
+    </div>
+
+    <button class="download-button" @onclick="DescargarPdf">
+        <i class="fas fa-file-pdf"></i> Descargar PDF
+    </button>
+
+    @if (itemsFiltrados == null)
+    {
+        <p class="loading-message">Cargando datos...</p>
+    }
+    else if (itemsFiltrados.Count == 0)
+    {
+        <p class="no-data-message">No se encontraron datos.</p>
+    }
+    else
+    {
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        @foreach (var prop in typeof(Credito).GetProperties())
+                        {
+                            <th>@prop.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in itemsFiltrados)
+                    {
+                        <tr>
+                            @foreach (var prop in typeof(Credito).GetProperties())
+                            {
+                                <td class="@((prop.Name == "estado") ? (item.estado == "Activo" ? "estado-activo" : "estado-inactivo") : "")">
+                                    @prop.GetValue(item)
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Credito> items = new();
+    private string filtro = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await Http.GetFromJsonAsync<List<Credito>>("api/Credito/GetAllCreditos");
+    }
+
+    private List<Credito> itemsFiltrados =>
+    string.IsNullOrWhiteSpace(filtro)
+    ? items
+    : items.Where(x => x.idCredito.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.codigoFactura.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.fechaInicial.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.fechaFinal.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.saldoMaximo.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.saldoActual.ToString().Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                      x.estado.Contains(filtro, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private async Task DescargarPdf()
+    {
+        var url = Navigation.ToAbsoluteUri("/api/Credito/DescargarReporteCreditos").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    [Inject] NavigationManager Navigation { get; set; }
+    [Inject] IJSRuntime JS { get; set; }
+}
