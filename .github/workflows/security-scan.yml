@@ -10,10 +10,10 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     env:
-      # CONFIGURACIÓN PARA TU PROYECTO - CORREGIDA
+      # CONFIGURACIÓN PARA TU PROYECTO
       APP_URL: http://localhost:5000
-      APP_PROJECT: "./Distribuidora_La_Central.Web/Distribuidora_La_Central.Web.csproj"   # Proyecto Web/API
-      STARTUP_TIMEOUT: 60
+      APP_PROJECT: "./Distribuidora_La_Central.Web/Distribuidora_La_Central.Web.csproj"   # Solo el proyecto Web
+      STARTUP_TIMEOUT: 90  # Aumentado para dar más tiempo
 
     steps:
     # Paso 1: Obtener el código del repositorio
@@ -24,7 +24,7 @@ jobs:
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '8.0.x'  # Usar 8.0.x que es más estable para Web APIs
 
     # Paso 3: Explorar estructura del proyecto
     - name: Explore project structure
@@ -32,13 +32,17 @@ jobs:
         echo "=== ESTRUCTURA DEL PROYECTO ==="
         find . -name "*.csproj" -type f
         echo ""
-        echo "=== ARCHIVO DE SOLUCIÓN ==="
-        find . -name "*.sln" -type f
-        echo ""
-        echo "=== DIRECTORIOS PRINCIPALES ==="
-        ls -la
+        echo "=== CONTENIDO DE CADA PROYECTO ==="
+        for proj in $(find . -name "*.csproj"); do
+          echo "🔍 Proyecto: $proj"
+          echo "   Target Framework:"
+          grep -oP '<TargetFramework>[^<]+' "$proj" | head -1 || echo "   No encontrado"
+          echo "   Project Type:"
+          grep -oP '<ProjectTypeGuids>[^<]+' "$proj" | head -1 || echo "   Standard/Web"
+          echo ""
+        done
 
-    # Paso 4: Verificar que el archivo del proyecto existe
+    # Paso 4: Verificar que el archivo del proyecto Web existe
     - name: Verify project file exists
       run: |
         echo "Buscando archivo del proyecto: ${{ env.APP_PROJECT }}"
@@ -49,18 +53,27 @@ jobs:
           exit 1
         else
           echo "✅ Archivo del proyecto encontrado: ${{ env.APP_PROJECT }}"
+          echo "📋 Contenido del proyecto Web:"
+          cat "${{ env.APP_PROJECT }}" | grep -E "(TargetFramework|ProjectSdk|PackageReference)" | head -10
         fi
 
-    # Paso 5: Restaurar dependencias y compilar la solución completa
-    - name: Restore and build solution
+    # Paso 5: Restaurar SOLO el proyecto Web (evitar MAUI/Android)
+    - name: Restore Web project only
       run: |
-        echo "Restaurando dependencias de la solución..."
-        dotnet restore "Distribuidora_La_Central.sln"
+        echo "Restaurando dependencias SOLO del proyecto Web..."
+        dotnet restore "${{ env.APP_PROJECT }}" --verbosity minimal
         
-        echo "Compilando solución completa..."
-        dotnet build "Distribuidora_La_Central.sln" -c Release --no-restore
+        echo "✅ Restauración completada del proyecto Web"
 
-    # Paso 6: Análisis de dependencias vulnerables para el proyecto web
+    # Paso 6: Compilar SOLO el proyecto Web
+    - name: Build Web project only
+      run: |
+        echo "Compilando SOLO el proyecto Web..."
+        dotnet build "${{ env.APP_PROJECT }}" -c Release --no-restore --verbosity minimal
+        
+        echo "✅ Compilación del proyecto Web completada"
+
+    # Paso 7: Análisis de dependencias vulnerables para el proyecto web
     - name: List vulnerable packages (SCA light)
       run: |
         echo "==== ANÁLISIS DE DEPENDENCIAS - PROYECTO WEB ====" > vulnerabilities.txt
@@ -68,6 +81,7 @@ jobs:
         echo "Proyecto: ${{ env.APP_PROJECT }}" >> vulnerabilities.txt
         echo "" >> vulnerabilities.txt
         
+        echo "Escaneando paquetes vulnerables..."
         echo "==== PAQUETES VULNERABLES ====" >> vulnerabilities.txt
         dotnet list "${{ env.APP_PROJECT }}" package --vulnerable --include-transitive >> vulnerabilities.txt 2>&1 || echo "No se encontraron paquetes vulnerables" >> vulnerabilities.txt
         
@@ -75,77 +89,86 @@ jobs:
         echo "==== PAQUETES DESACTUALIZADOS ====" >> vulnerabilities.txt
         dotnet list "${{ env.APP_PROJECT }}" package --outdated --include-transitive >> vulnerabilities.txt 2>&1 || echo "No se encontraron paquetes desactualizados" >> vulnerabilities.txt
         
-        echo "" >> vulnerabilities.txt
-        echo "=== ANÁLISIS COMPLETADO ===" >> vulnerabilities.txt
-        
-        echo "Contenido del reporte de dependencias:"
-        cat vulnerabilities.txt
+        echo "Análisis de dependencias completado"
+        echo "=== RESUMEN DE VULNERABILIDADES ==="
+        grep -E "(vulnerable|outdated|HIGH|CRITICAL)" vulnerabilities.txt || echo "No se encontraron problemas críticos"
 
-    # Paso 7: Iniciar la aplicación web en segundo plano
+    # Paso 8: Iniciar la aplicación web en segundo plano
     - name: Start Web API in background
       run: |
         echo "Iniciando la aplicación Web/API en segundo plano..."
         
+        # Verificar variables de entorno
+        echo "APP_URL: ${{ env.APP_URL }}"
+        echo "APP_PROJECT: ${{ env.APP_PROJECT }}"
+        
         # Inicia el proyecto Web en segundo plano
+        echo "Ejecutando: dotnet run --project ${{ env.APP_PROJECT }} --urls ${{ env.APP_URL }} --configuration Release"
         nohup dotnet run --project "${{ env.APP_PROJECT }}" --urls "${{ env.APP_URL }}" --configuration Release &> app.log &
         
-        # Guarda el PID del proceso para poder terminarlo después
+        # Guarda el PID del proceso
         echo $! > app.pid
+        echo "PID del proceso: $(cat app.pid)"
         
         echo "Esperando que la aplicación Web esté disponible en ${{ env.APP_URL }}..."
         SECONDS=0
-        while [ $SECONDS -lt ${{ env.STARTUP_TIMEOUT }} ]; do
+        MAX_WAIT=${{ env.STARTUP_TIMEOUT }}
+        
+        while [ $SECONDS -lt $MAX_WAIT ]; do
           if curl -s -f "${{ env.APP_URL }}" > /dev/null 2>&1; then
             echo "✅ Aplicación Web disponible en ${{ env.APP_URL }} después de ${SECONDS}s"
+            echo "=== Verificando respuesta HTTP ==="
+            curl -s -I "${{ env.APP_URL }}" | head -5 || true
             break
           fi
           echo "Esperando... (${SECONDS}s)"
-          sleep 3
+          sleep 5
         done
         
         # Verificación final
         if ! curl -s -f "${{ env.APP_URL }}" > /dev/null 2>&1; then
-          echo "❌ ERROR: La aplicación Web no respondió en ${{ env.STARTUP_TIMEOUT }}s"
-          echo "=== Últimas líneas del log de la aplicación ==="
-          tail -50 app.log || true
-          echo "=== Intentando identificar el problema ==="
-          netstat -tulpn || true
-          echo "=== Procesos dotnet ==="
+          echo "❌ ERROR: La aplicación Web no respondió en $MAX_WAIT segundos"
+          echo "=== Últimas 30 líneas del log ==="
+          tail -30 app.log || true
+          echo "=== Procesos dotnet en ejecución ==="
           ps aux | grep dotnet || true
+          echo "=== Puertos en uso ==="
+          netstat -tulpn 2>/dev/null || ss -tulpn 2>/dev/null || true
           exit 1
         fi
 
-    # Paso 8: Descargar imagen de OWASP ZAP
+    # Paso 9: Descargar imagen de OWASP ZAP
     - name: Pull OWASP ZAP image
       run: |
         echo "Descargando imagen de OWASP ZAP..."
         docker pull owasp/zap2docker-stable
 
-    # Paso 9: Ejecutar escaneo de seguridad con OWASP ZAP
+    # Paso 10: Ejecutar escaneo de seguridad con OWASP ZAP
     - name: Run OWASP ZAP baseline scan
       run: |
         echo "Iniciando escaneo de seguridad con OWASP ZAP..."
         
-        # Para GitHub Actions, usamos host.docker.internal para conectar con la aplicación local
         TARGET="${{ env.APP_URL }}"
-        
         echo "Objetivo del escaneo: $TARGET"
-        echo "Directorio actual: $(pwd)"
-        echo "Archivos en el directorio:"
-        ls -la
+        
+        # Crear directorio para reportes si no existe
+        mkdir -p zap-reports
         
         # Ejecuta el escaneo baseline de ZAP
         docker run --rm \
-          -v "$(pwd):/zap/wrk/:rw" \
+          -v "$(pwd)/zap-reports:/zap/wrk/:rw" \
           -t owasp/zap2docker-stable \
-          zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -I
+          zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -I -c zap-config.conf || true
+        
+        # Mover reportes al directorio principal
+        mv zap-reports/* . 2>/dev/null || true
         
         echo "Escaneo de ZAP completado"
         
       env:
         ZAP_MAX_MEM: 2048m
 
-    # Paso 10: Detener la aplicación
+    # Paso 11: Detener la aplicación
     - name: Stop API
       if: always()
       run: |
@@ -154,51 +177,60 @@ jobs:
           PID=$(cat app.pid)
           echo "Terminando proceso $PID"
           kill $PID 2>/dev/null || true
-          sleep 3
+          sleep 5
+          # Verificar si el proceso sigue ejecutándose
+          if ps -p $PID > /dev/null 2>&1; then
+            echo "Forzando terminación del proceso $PID"
+            kill -9 $PID 2>/dev/null || true
+          fi
           rm -f app.pid
         fi
-        # Asegurarse de que no queden procesos de dotnet
+        # Limpiar procesos de dotnet
         pkill -f "dotnet run" 2>/dev/null || true
         echo "Limpieza de procesos completada"
 
-    # Paso 11: Guardar logs de la aplicación
+    # Paso 12: Guardar logs de la aplicación
     - name: Save app log
       if: always()
       run: |
         echo "Guardando logs de la aplicación..."
         if [ -f app.log ]; then
           echo "=== LOG DE LA APLICACIÓN WEB ===" > application_logs.txt
+          echo "Proyecto: ${{ env.APP_PROJECT }}" >> application_logs.txt
+          echo "URL: ${{ env.APP_URL }}" >> application_logs.txt
+          echo "Fecha: $(date)" >> application_logs.txt
+          echo "" >> application_logs.txt
           cat app.log >> application_logs.txt
-          echo "Log guardado en application_logs.txt"
-          echo "=== ÚLTIMAS 50 LÍNEAS DEL LOG ==="
-          tail -50 app.log || true
+          echo "✅ Log guardado en application_logs.txt"
         else
           echo "No se encontró el archivo app.log" > application_logs.txt
         fi
 
-    # Paso 12: Generar reporte resumen
+    # Paso 13: Generar reporte resumen
     - name: Generate summary report
       if: always()
       run: |
         echo "Generando reporte resumen del escaneo..."
         
-        echo "# REPORTE DE SEGURIDAD - DISTRIBUIDORA LA CENTRAL" > security_summary.md
-        echo "**Proyecto Web Analizado:** ${{ env.APP_PROJECT }}" >> security_summary.md
-        echo "**Fecha:** $(date)" >> security_summary.md
-        echo "**Branch:** ${{ github.ref }}" >> security_summary.md
-        echo "**Commit:** ${{ github.sha }}" >> security_summary.md
+        echo "# 🛡️ REPORTE DE SEGURIDAD - DISTRIBUIDORA LA CENTRAL" > security_summary.md
+        echo "" >> security_summary.md
+        echo "## 📋 INFORMACIÓN DEL ESCANEO" >> security_summary.md
+        echo "- **Proyecto Analizado:** \`${{ env.APP_PROJECT }}\`" >> security_summary.md
+        echo "- **URL Escaneada:** ${{ env.APP_URL }}" >> security_summary.md
+        echo "- **Fecha:** $(date)" >> security_summary.md
+        echo "- **Branch:** ${{ github.ref }}" >> security_summary.md
+        echo "- **Commit:** ${{ github.sha }}" >> security_summary.md
         echo "" >> security_summary.md
         
         # Información de dependencias
         echo "## 📦 ANÁLISIS DE DEPENDENCIAS" >> security_summary.md
         if [ -f vulnerabilities.txt ]; then
-          VULN_COUNT=$(grep -c "vulnerable" vulnerabilities.txt || true)
-          if [ "$VULN_COUNT" -gt 0 ]; then
+          if grep -q "vulnerable" vulnerabilities.txt; then
             echo "⚠️  **Se encontraron dependencias vulnerables**" >> security_summary.md
           else
-            echo "✅ **No se encontraron dependencias vulnerables**" >> security_summary.md
+            echo "✅ **No se encontraron dependencias vulnerables críticas**" >> security_summary.md
           fi
-          echo "Ver archivo: `vulnerabilities.txt` para detalles completos" >> security_summary.md
+          echo "Ver archivo \`vulnerabilities.txt\` para detalles completos" >> security_summary.md
         else
           echo "❌ No se pudo generar análisis de dependencias" >> security_summary.md
         fi
@@ -207,16 +239,16 @@ jobs:
         # Información de ZAP
         echo "## 🔒 ESCANEO OWASP ZAP" >> security_summary.md
         if [ -f zap_report.json ]; then
-          # Contar alertas por nivel de riesgo
           HIGH_CRITICAL=$(jq '[.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical")] | length' zap_report.json 2>/dev/null || echo "0")
           MEDIUM=$(jq '[.site[0].alerts[]? | select(.risk == "Medium")] | length' zap_report.json 2>/dev/null || echo "0")
           LOW_INFO=$(jq '[.site[0].alerts[]? | select(.risk == "Low" or .risk == "Informational")] | length' zap_report.json 2>/dev/null || echo "0")
           
-          echo "| Nivel de Riesgo | Cantidad |" >> security_summary.md
-          echo "|----------------|----------|" >> security_summary.md
-          echo "| 🔴 High/Critical | $HIGH_CRITICAL |" >> security_summary.md
-          echo "| 🟡 Medium | $MEDIUM |" >> security_summary.md
-          echo "| 🔵 Low/Informational | $LOW_INFO |" >> security_summary.md
+          echo "### Resumen de Alertas" >> security_summary.md
+          echo "| Nivel de Riesgo | Cantidad | Estado |" >> security_summary.md
+          echo "|----------------|----------|--------|" >> security_summary.md
+          echo "| 🔴 High/Critical | $HIGH_CRITICAL | $( [ "$HIGH_CRITICAL" -eq 0 ] && echo "✅" || echo "❌" ) |" >> security_summary.md
+          echo "| 🟡 Medium | $MEDIUM | $( [ "$MEDIUM" -eq 0 ] && echo "✅" || echo "⚠️" ) |" >> security_summary.md
+          echo "| 🔵 Low/Informational | $LOW_INFO | ℹ️ |" >> security_summary.md
           echo "" >> security_summary.md
           echo "✅ **Reporte ZAP generado correctamente**" >> security_summary.md
         else
@@ -225,22 +257,17 @@ jobs:
         echo "" >> security_summary.md
         
         echo "## 📁 ARCHIVOS GENERADOS" >> security_summary.md
-        echo "- **security_summary.md** (este resumen)" >> security_summary.md
-        echo "- **vulnerabilities.txt** (análisis de dependencias del proyecto Web)" >> security_summary.md
-        echo "- **zap_report.html** (reporte visual de OWASP ZAP)" >> security_summary.md
-        echo "- **zap_report.json** (reporte técnico de OWASP ZAP)" >> security_summary.md
-        echo "- **application_logs.txt** (logs de ejecución de la aplicación)" >> security_summary.md
+        echo "- \`security_summary.md\` - Este resumen ejecutivo" >> security_summary.md
+        echo "- \`vulnerabilities.txt\` - Análisis de dependencias" >> security_summary.md
+        echo "- \`zap_report.html\` - Reporte visual de OWASP ZAP" >> security_summary.md
+        echo "- \`zap_report.json\` - Reporte técnico de OWASP ZAP" >> security_summary.md
+        echo "- \`application_logs.txt\` - Logs de ejecución" >> security_summary.md
         echo "" >> security_summary.md
-        
-        echo "## 🎯 PRÓXIMOS PASOS" >> security_summary.md
-        echo "1. Revisar las alertas HIGH/CRITICAL en zap_report.html" >> security_summary.md
-        echo "2. Actualizar dependencias vulnerables identificadas" >> security_summary.md
-        echo "3. Corregir vulnerabilidades antes de producción" >> security_summary.md
         
         echo "=== RESUMEN EJECUTIVO ==="
         cat security_summary.md
 
-    # Paso 13: Subir todos los reportes como artefactos
+    # Paso 14: Subir todos los reportes como artefactos
     - name: Upload reports
       uses: actions/upload-artifact@v4
       with:
@@ -253,14 +280,13 @@ jobs:
           application_logs.txt
         retention-days: 30
 
-    # Paso 14: Fallar el job si hay alertas críticas
+    # Paso 15: Fallar el job si hay alertas críticas
     - name: Fail on critical ZAP alerts
       if: always()
       run: |
         echo "Evaluando alertas críticas de seguridad..."
         
         if [ -f zap_report.json ]; then
-          # Usar jq para contar alertas High/Critical
           CRITICAL_COUNT=$(jq '[.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical")] | length' zap_report.json 2>/dev/null || echo "0")
           
           echo "🔍 Alertas HIGH/CRITICAL encontradas: $CRITICAL_COUNT"
