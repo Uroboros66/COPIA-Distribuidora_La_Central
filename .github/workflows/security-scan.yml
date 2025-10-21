@@ -222,7 +222,7 @@ jobs:
         fi
         
         # Crear informe ejecutivo
-        cat > executive_report.md << EOF
+        cat > executive_report.md << 'EOF'
 # INFORME DE SEGURIDAD - DISTRIBUIDORA LA CENTRAL
 
 ## Resumen Ejecutivo
@@ -243,7 +243,7 @@ EOF
           echo "| - | - | No se encontraron hallazgos criticos | - | - |" >> executive_report.md
         fi
 
-        cat >> executive_report.md << EOF
+        cat >> executive_report.md << 'EOF'
 
 ## Analisis por Categoria
 ### CODIGO
@@ -272,18 +272,18 @@ EOF
           echo "3. [ ] Actualizar $OUTDATED_COUNT librerias desactualizadas" >> executive_report.md
         fi
         
-        cat >> executive_report.md << EOF
+        cat >> executive_report.md << 'EOF'
 4. [ ] Implementar revision de codigo de seguridad
 5. [ ] Configurar escaneo continuo en pipeline
 
 ## Metricas de Mejora
-- Cobertura de analisis: $( [ -f zap_report.json ] && echo "85%" || echo "60%" )
+- Cobertura de analisis: $([ -f zap_report.json ] && echo "85%" || echo "60%")
 - Tiempo de remediacion estimado: $((HIGH_VULN_COUNT * 2 + VULN_COUNT * 1)) dias
-- Impacto en seguridad: $( [ $TOTAL_CRITICAL -gt 5 ] && echo "Alto" || ([ $TOTAL_CRITICAL -gt 2 ] && echo "Medio" || echo "Bajo") )
+- Impacto en seguridad: $([ $TOTAL_CRITICAL -gt 5 ] && echo "Alto" || ([ $TOTAL_CRITICAL -gt 2 ] && echo "Medio" || echo "Bajo"))
 
 ## Detalles Tecnicos
-- Proyecto analizado: ${{ env.APP_PROJECT }}
-- URL escaneada: ${APP_URL:-No detectada}
+- Proyecto analizado: $APP_PROJECT
+- URL escaneada: $APP_URL
 - Fecha del analisis: $(date)
 - Entorno: GitHub Actions - Ubuntu Latest
 - Herramientas: OWASP ZAP, .NET Security Scan
