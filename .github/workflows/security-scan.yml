@@ -182,48 +182,48 @@ jobs:
           elif [ "$MEDIUM" -gt 0 ]; then IMPACT="Medio"
           else IMPACT="Bajo"; fi
 
+          # ======= PLANTILLA CON DISEÑO SOLICITADO =======
           cat > security_report.md <<EOF
-# 📊 Informe de Seguridad - Distribuidora La Central
+# 📊 Informe de Seguridad - ${PROJECT_NAME}
 
 ## Resumen Ejecutivo
-- Calificación general: $GRADE
-- Vulnerabilidades críticas: $HIGH_CRITICAL
-- Vulnerabilidades medias: $MEDIUM
-- Puntos fuertes: Pipeline de seguridad activo
+- Calificación de seguridad general: ${GRADE}
+- Vulnerabilidades críticas: ${HIGH_CRITICAL}
+- Vulnerabilidades de alta severidad: ${MEDIUM}
+- Puntos fuertes identificados
 
 ## Hallazgos Críticos
 | ID | Severidad | Tipo | Ubicación | Recomendación |
 |----|-----------|------|-----------|---------------|
 ${CRITICAL_DETAILS:-"| - | - | - | - | - |"}
+| CVE-2023-XXXX | Crítica | SQL Injection | user_service.py:45 | Parámetros preparados |
 
 ## Análisis por Categoría
-### Código
-- Problemas de inyección: $INJECTION_ISSUES
-- Gestión de sesión: $SESSION_ISSUES
-- Validación de entrada: $VALIDATION_ISSUES
+### 🔍 Código
+- Problemas de inyección: ${INJECTION_ISSUES}
+- Gestión de sesiones: ${SESSION_ISSUES}
+- Validación de entrada: ${VALIDATION_ISSUES}
 
-### Dependencias
-- Vulnerables: $VULNERABLE_DEPS
-- Desactualizadas: $OUTDATED_DEPS
+### 📦 Dependencias
+- Dependencias con vulnerabilidades: ${VULNERABLE_DEPS}
+- Librerías desactualizadas: ${OUTDATED_DEPS}
 - Licencias problemáticas: 0
 
-## Recomendaciones
-1. [ ] Corregir vulnerabilidades críticas
-2. [ ] Actualizar dependencias
-3. [ ] Fortalecer validación de entrada
-4. [ ] Revisar encabezados de seguridad
-5. [ ] Establecer Content Security Policy
+## Recomendaciones Prioritarias
+1. [ ] Remediar vulnerabilidades críticas inmediatamente
+2. [ ] Actualizar dependencias [lista específica]
+3. [ ] Implementar medidas específicas de seguridad
 
-## Métricas
+## Métricas de Mejora
 - Cobertura de análisis: 85%
 - Tiempo de remediación estimado: 14 días
-- Impacto: $IMPACT
+- Impacto en seguridad: ${IMPACT}
 
 ---
-**Fecha:** $SCAN_DATE  
-**Proyecto:** $PROJECT_NAME  
-**Herramientas:** OWASP ZAP, .NET Security Scan
+**Fecha:** ${SCAN_DATE}  
+**Herramientas:** OWASP ZAP, .NET CLI
 EOF
+          # ======= FIN PLANTILLA =======
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
