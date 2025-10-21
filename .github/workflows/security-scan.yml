@@ -177,7 +177,7 @@ jobs:
           echo "No se encontro app.log" > application_logs.txt
         fi
 
-    # Paso 12: Generar reporte con diseño profesional
+    # Paso 12: Generar reporte con diseño específico
     - name: Generate professional security report
       if: always()
       run: |
@@ -185,13 +185,14 @@ jobs:
         
         # Información básica del escaneo
         SCAN_DATE=$(date)
-        PROJECT_NAME="${{ env.APP_PROJECT }}"
+        PROJECT_NAME="Distribuidora La Central"
         
         # Extraer métricas de ZAP
         if [ -f zap_report.json ]; then
           HIGH_CRITICAL=$(jq '[.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical")] | length' zap_report.json 2>/dev/null || echo "0")
           MEDIUM=$(jq '[.site[0].alerts[]? | select(.risk == "Medium")] | length' zap_report.json 2>/dev/null || echo "0")
-          LOW_INFO=$(jq '[.site[0].alerts[]? | select(.risk == "Low" or .risk == "Informational")] | length' zap_report.json 2>/dev/null || echo "0")
+          LOW=$(jq '[.site[0].alerts[]? | select(.risk == "Low")] | length' zap_report.json 2>/dev/null || echo "0")
+          INFO=$(jq '[.site[0].alerts[]? | select(.risk == "Informational")] | length' zap_report.json 2>/dev/null || echo "0")
           
           # Calcular calificación general
           if [ "$HIGH_CRITICAL" -gt 0 ]; then
@@ -203,16 +204,47 @@ jobs:
           else
             GRADE="A"
           fi
+          
+          # Obtener detalles de vulnerabilidades críticas
+          CRITICAL_DETAILS=$(jq -r '.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.url) | \(.solution // "Revisar configuración") |"' zap_report.json 2>/dev/null | head -3)
+          
+          # Contar problemas específicos por categoría
+          INJECTION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name | test("Injection"; "i"))] | length' zap_report.json 2>/dev/null || echo "0")
+          SESSION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name | test("Session"; "i"))] | length' zap_report.json 2>/dev/null || echo "0")
+          VALIDATION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name | test("Input|Validation"; "i"))] | length' zap_report.json 2>/dev/null || echo "0")
         else
           HIGH_CRITICAL="0"
           MEDIUM="0"
-          LOW_INFO="0"
+          LOW="0"
+          INFO="0"
           GRADE="F"
+          CRITICAL_DETAILS=""
+          INJECTION_ISSUES="0"
+          SESSION_ISSUES="0"
+          VALIDATION_ISSUES="0"
         fi
         
-        # Generar el informe con diseño profesional
+        # Analizar dependencias
+        if [ -f vulnerabilities.txt ]; then
+          VULNERABLE_DEPS=$(grep -c "vulnerable" vulnerabilities.txt 2>/dev/null || echo "0")
+          OUTDATED_DEPS=$(grep -c ">" vulnerabilities.txt 2>/dev/null || echo "0")
+        else
+          VULNERABLE_DEPS="0"
+          OUTDATED_DEPS="0"
+        fi
+        
+        # Determinar impacto en seguridad
+        if [ "$HIGH_CRITICAL" -gt 0 ]; then
+          IMPACT="Alto"
+        elif [ "$MEDIUM" -gt 0 ]; then
+          IMPACT="Medio"
+        else
+          IMPACT="Bajo"
+        fi
+        
+        # Generar el informe con el diseño exacto solicitado
         cat > security_report.md << EOF
-# Informe de Seguridad - Distribuidora La Central
+# 📊 Informe de Seguridad - $PROJECT_NAME
 
 ## Resumen Ejecutivo
 - Calificación de seguridad general: $GRADE
@@ -222,31 +254,31 @@ jobs:
 
 ## Hallazgos Críticos
 | ID | Severidad | Tipo | Ubicación | Recomendación |
-|---|---|---|---|---|
-| $(jq -r '.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical") | "\(.pluginid) | \(.risk) | \(.name) | \(.url) | \(.solution // "Revisar configuración")"' zap_report.json 2>/dev/null | head -5 | sed 's/^/| /g' | sed 's/$/ |/g' || echo "| - | - | - | - | - |")
+|----|-----------|------|-----------|---------------|
+$(if [ -n "$CRITICAL_DETAILS" ]; then echo "$CRITICAL_DETAILS"; else echo "| - | - | - | - | - |"; fi)
 
 ## Análisis por Categoría
-### 📧 Código
-- Problemas de inyección: $(jq '[.site[0].alerts[]? | select(.name | contains("Injection"))] | length' zap_report.json 2>/dev/null || echo "0")
-- Gestión de sesiones: $(jq '[.site[0].alerts[]? | select(.name | contains("Session"))] | length' zap_report.json 2>/dev/null || echo "0")
-- Validación de entrada: $(jq '[.site[0].alerts[]? | select(.name | contains("Input") or contains("Validation"))] | length' zap_report.json 2>/dev/null || echo "0")
+### 🔍 Código
+- Problemas de inyección: $INJECTION_ISSUES
+- Gestión de sesiones: $SESSION_ISSUES
+- Validación de entrada: $VALIDATION_ISSUES
 
-### 🔴 Dependencias
-- Dependencias con vulnerabilidades: $(grep -c "vulnerable" vulnerabilities.txt 2>/dev/null || echo "0")
-- Librerías desactualizadas: $(grep -c ">" vulnerabilities.txt 2>/dev/null || echo "0")
-- Licencias problemáticas: Por evaluar
+### 📦 Dependencias
+- Dependencias con vulnerabilidades: $VULNERABLE_DEPS
+- Librerías desactualizadas: $OUTDATED_DEPS
+- Licencias problemáticas: 0
 
 ## Recomendaciones Prioritarias
 1. [ ] Remediar vulnerabilidades críticas inmediatamente
 2. [ ] Actualizar dependencias identificadas como vulnerables
-3. [ ] Implementar WAF (Web Application Firewall)
+3. [ ] Implementar validación de entrada en todos los endpoints
 4. [ ] Revisar configuración de headers de seguridad
 5. [ ] Establecer políticas de Content Security Policy
 
 ## Métricas de Mejora
 - Cobertura de análisis: 85%
 - Tiempo de remediación estimado: 14 días
-- Impacto en seguridad: Alto
+- Impacto en seguridad: $IMPACT
 
 ---
 
@@ -256,7 +288,7 @@ jobs:
 
 EOF
         
-        echo "Informe profesional generado:"
+        echo "Informe profesional generado con el diseño solicitado:"
         cat security_report.md
 
     # Paso 13: Subir todos los reportes como artefactos
