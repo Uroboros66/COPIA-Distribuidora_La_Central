@@ -24,39 +24,49 @@ jobs:
 
       - name: Restore and build project
         run: |
+          echo "Restaurando y compilando el proyecto..."
           dotnet restore "${{ env.APP_PROJECT }}" --verbosity minimal
           dotnet build "${{ env.APP_PROJECT }}" -c Release --no-restore --verbosity minimal
+          echo "Compilación completada correctamente."
 
       - name: Start Web API
         run: |
+          echo "Iniciando aplicación..."
           nohup dotnet run --project "${{ env.APP_PROJECT }}" --configuration Release &> app.log &
           echo $! > app.pid
+          echo "Aplicación iniciada. Esperando 10 segundos..."
           sleep 10
 
       - name: Pull OWASP ZAP
-        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+        run: |
+          echo "Descargando imagen OWASP ZAP..."
+          docker pull ghcr.io/zaproxy/zaproxy:stable
 
       - name: Run OWASP ZAP baseline scan
         run: |
           APP_URL="http://localhost:5000"
+          echo "Ejecutando escaneo OWASP ZAP sobre: $APP_URL"
           docker run --rm \
             --network host \
             -v "$(pwd):/zap/wrk/:rw" \
             -t ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "$APP_URL" -r zap_report.html -J zap_report.json -I || true
+          echo "Escaneo OWASP ZAP completado."
 
       - name: Stop API
         if: always()
         run: |
+          echo "Deteniendo la aplicación..."
           if [ -f app.pid ]; then
             kill $(cat app.pid) || true
             rm -f app.pid
           fi
+          echo "Aplicación detenida."
 
-      - name: Generate report
+      - name: Generate security report
         if: always()
         run: |
-          echo "Generando reporte..."
+          echo "Generando informe de seguridad..."
           SCAN_DATE=$(date)
           PROJECT_NAME="Distribuidora La Central"
 
@@ -72,18 +82,32 @@ jobs:
           CRITICAL_DETAILS=$(jq -r '.site[0].alerts[]? | select(.risk=="High" or .risk=="Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.url) | \(.solution // "Revisar configuración") |"' zap_report.json 2>/dev/null | head -5)
 
           {
-            echo "# Informe de Seguridad - ${PROJECT_NAME}"
+            echo "# INFORME DE SEGURIDAD - ${PROJECT_NAME}"
             echo ""
-            echo "Fecha: ${SCAN_DATE}"
-            echo "------------------------------------------------------------"
-            echo "## Resumen Ejecutivo"
+            echo "Fecha del escaneo: ${SCAN_DATE}"
+            echo ""
+            echo "============================================================"
+            echo "RESUMEN EJECUTIVO"
+            echo "============================================================"
             echo "Calificación general: ${GRADE}"
             echo "Vulnerabilidades críticas: ${HIGH_CRITICAL}"
             echo "Vulnerabilidades medias: ${MEDIUM}"
             echo "Vulnerabilidades bajas: ${LOW}"
             echo ""
-            echo "------------------------------------------------------------"
-            echo "## Hallazgos Críticos"
+            echo "Evaluación general:"
+            if [ "$GRADE" == "A" ]; then
+              echo "El sistema presenta un nivel de seguridad alto, sin vulnerabilidades críticas."
+            elif [ "$GRADE" == "B" ]; then
+              echo "El sistema presenta vulnerabilidades menores o configuraciones mejorables."
+            elif [ "$GRADE" == "C" ]; then
+              echo "El sistema presenta riesgos medios que deben ser atendidos pronto."
+            else
+              echo "El sistema presenta vulnerabilidades críticas y requiere atención inmediata."
+            fi
+            echo ""
+            echo "============================================================"
+            echo "HALLAZGOS CRÍTICOS"
+            echo "============================================================"
             echo "| ID | Severidad | Tipo | Ubicación | Recomendación |"
             echo "|----|-----------|------|-----------|---------------|"
             if [ -n "$CRITICAL_DETAILS" ]; then
@@ -92,20 +116,36 @@ jobs:
               echo "| - | - | - | - | - |"
             fi
             echo ""
-            echo "------------------------------------------------------------"
-            echo "## Recomendaciones"
-            echo "1. Corregir vulnerabilidades críticas inmediatamente."
-            echo "2. Actualizar dependencias afectadas."
-            echo "3. Revisar validaciones y sanitización de entrada."
-            echo "4. Implementar políticas de seguridad CSP y cabeceras seguras."
+            echo "============================================================"
+            echo "ANÁLISIS POR CATEGORÍA"
+            echo "============================================================"
+            echo "Código:"
+            echo "  - Inyección detectada: $(jq '[.site[0].alerts[]? | select(.name|test("Injection";"i"))] | length' zap_report.json 2>/dev/null || echo "0")"
+            echo "  - Gestión de sesiones: $(jq '[.site[0].alerts[]? | select(.name|test("Session";"i"))] | length' zap_report.json 2>/dev/null || echo "0")"
+            echo "  - Validación de entrada: $(jq '[.site[0].alerts[]? | select(.name|test("Input|Validation";"i"))] | length' zap_report.json 2>/dev/null || echo "0")"
             echo ""
-            echo "------------------------------------------------------------"
-            echo "## Métricas de Mejora"
+            echo "Dependencias:"
+            echo "  - Dependencias vulnerables: $(grep -c 'vulnerable' vulnerabilities.txt 2>/dev/null || echo "0")"
+            echo "  - Librerías desactualizadas: $(grep -c '>' vulnerabilities.txt 2>/dev/null || echo "0")"
+            echo ""
+            echo "============================================================"
+            echo "RECOMENDACIONES PRIORITARIAS"
+            echo "============================================================"
+            echo "1. Corregir vulnerabilidades críticas inmediatamente."
+            echo "2. Actualizar dependencias afectadas o desactualizadas."
+            echo "3. Revisar validaciones y sanitización de entrada."
+            echo "4. Implementar cabeceras de seguridad y Content Security Policy."
+            echo "5. Automatizar escaneos de seguridad periódicos en el pipeline."
+            echo ""
+            echo "============================================================"
+            echo "MÉTRICAS DE MEJORA"
+            echo "============================================================"
             echo "Cobertura de análisis: 85%"
             echo "Tiempo estimado de remediación: 14 días"
             echo "------------------------------------------------------------"
             echo "Herramientas utilizadas: OWASP ZAP, .NET CLI, GitHub Actions"
           } > security_report.md
+          echo "Informe generado correctamente."
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
