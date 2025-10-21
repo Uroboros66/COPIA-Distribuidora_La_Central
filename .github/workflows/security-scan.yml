@@ -126,11 +126,11 @@ jobs:
           exit 1
         fi
 
-    # Paso 8: Descargar imagen de OWASP ZAP
+    # Paso 8: Descargar imagen de OWASP ZAP (corregida)
     - name: Pull OWASP ZAP image
       run: |
         echo "Descargando imagen de OWASP ZAP..."
-        docker pull owasp/zap2docker-stable
+        docker pull ghcr.io/zaproxy/zaproxy:stable
 
     # Paso 9: Ejecutar escaneo de seguridad con OWASP ZAP
     - name: Run OWASP ZAP baseline scan
@@ -141,11 +141,11 @@ jobs:
         TARGET="$APP_URL"
         echo "Objetivo del escaneo: $TARGET"
         
-        # Ejecutar escaneo ZAP
+        # Ejecutar escaneo ZAP con la imagen correcta
         docker run --rm \
           --network host \
           -v "$(pwd):/zap/wrk/:rw" \
-          -t owasp/zap2docker-stable \
+          -t ghcr.io/zaproxy/zaproxy:stable \
           zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -I || true
         
         echo "Escaneo de ZAP completado"
