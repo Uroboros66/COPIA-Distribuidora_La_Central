@@ -1,0 +1,109 @@
+name: Security Scan - .NET + OWASP ZAP
+
+on:
+  push:
+    branches: [ feature/security-audit ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    env:
+      # Cambia si tu app usa otra URL/puerto
+      APP_URL: http://127.0.0.1:5000
+      APP_PROJECT: ./src/MyApi/MyApi.csproj   # <- ajusta esto a tu proyecto
+      STARTUP_TIMEOUT: 60
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'    # ajusta a la versión que uses
+
+    - name: Restore and build
+      run: |
+        dotnet restore "${{ env.APP_PROJECT }}"
+        dotnet build --no-restore "${{ env.APP_PROJECT }}" -c Release
+
+    - name: List vulnerable packages (SCA light)
+      run: |
+        echo "==== Vulnerable packages (text) ====" > vulnerabilities.txt
+        dotnet list "${{ env.APP_PROJECT }}" package --vulnerable --include-transitive || true
+        echo "" >> vulnerabilities.txt
+        echo "==== Outdated packages (text) ====" >> vulnerabilities.txt
+        dotnet list "${{ env.APP_PROJECT }}" package --outdated --include-transitive || true
+      continue-on-error: false
+
+    - name: Start API in background
+      run: |
+        # Inicia la API en segundo plano. Ajusta --urls si tu app usa otro host/puerto
+        nohup dotnet run --project "${{ env.APP_PROJECT }}" --urls "${{ env.APP_URL }}" &> app.log &
+        echo "Esperando que la app levante..."
+        SECONDS=0
+        until curl -sSf "${{ env.APP_URL }}" > /dev/null || [ $SECONDS -gt $STARTUP_TIMEOUT ]; do
+          sleep 1
+        done
+        if ! curl -sSf "${{ env.APP_URL }}" > /dev/null; then
+          echo "La app no respondió en ${STARTUP_TIMEOUT}s. Contenido de app.log:"
+          tail -n +1 app.log || true
+          exit 1
+        fi
+        echo "API arriba en ${{ env.APP_URL }}"
+
+    - name: Pull OWASP ZAP image
+      run: docker pull owasp/zap2docker-stable
+
+    - name: Run OWASP ZAP baseline scan
+      run: |
+        # Opción A: apuntar directamente a localhost (puede requerir --network host)
+        # Opción B: usar host.docker.internal (funciona en la mayoría de runners modernos)
+        TARGET="${{ env.APP_URL }}"
+
+        echo "Usando target: $TARGET"
+
+        # Ejecuta zap-baseline.py y genera zap_report.html en el workspace
+        docker run --rm -v "$(pwd):/zap/wrk/:rw" -t owasp/zap2docker-stable \
+          zap-baseline.py -t "$TARGET" -r zap_report.html -I -J zap_report.json || true
+
+        # Nota: el script devuelve código distinto de 0 para ciertos alerts; permitimos continuar para subir reportes.
+      env:
+        # aumenta memoria si tu scan lo necesita (opcional)
+        ZAP_MAX_MEM: 2048m
+
+    - name: Save app log
+      if: always()
+      run: |
+        cp app.log "$(pwd)/app.log" || true
+        ls -la
+
+    - name: Upload reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-scan-reports
+        path: |
+          zap_report.html
+          zap_report.json
+          vulnerabilities.txt
+          app.log
+
+    - name: Fail on critical ZAP alerts (optional)
+      if: always()
+      run: |
+        # Este bloque falla el job si hay alerts con riesgo HIGH/CRITICAL en el JSON.
+        if [ -f zap_report.json ]; then
+          CRITICAL_COUNT=$(jq '.site[].alerts[]? | select(.risk == "High" or .risk == "Critical")' zap_report.json | wc -l || true)
+          echo "High/Critical alerts found: $CRITICAL_COUNT"
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "Se detectaron alertas HIGH/CRITICAL. Failing the job."
+            exit 1
+          fi
+        else
+          echo "zap_report.json no encontrado — no se puede evaluar gravedad automáticamente."
+        fi
+      env:
+        # jq está disponible en ubuntu-latest por defecto; si no, instalarlo.
+        PATH: /usr/bin:$PATH
