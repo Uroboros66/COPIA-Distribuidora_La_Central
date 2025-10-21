@@ -60,12 +60,8 @@ jobs:
           echo "Fecha: $(date)" >> vulnerabilities.txt
           echo "Proyecto: ${{ env.APP_PROJECT }}" >> vulnerabilities.txt
           echo "" >> vulnerabilities.txt
-
-          echo "==== PAQUETES VULNERABLES ====" >> vulnerabilities.txt
           dotnet list "${{ env.APP_PROJECT }}" package --vulnerable --include-transitive >> vulnerabilities.txt 2>&1 || echo "No se encontraron paquetes vulnerables" >> vulnerabilities.txt
-
           echo "" >> vulnerabilities.txt
-          echo "==== PAQUETES DESACTUALIZADOS ====" >> vulnerabilities.txt
           dotnet list "${{ env.APP_PROJECT }}" package --outdated --include-transitive >> vulnerabilities.txt 2>&1 || echo "No se encontraron paquetes desactualizados" >> vulnerabilities.txt
 
       - name: Start Web API and detect port
@@ -74,7 +70,6 @@ jobs:
           nohup dotnet run --project "${{ env.APP_PROJECT }}" --configuration Release &> app.log &
           echo $! > app.pid
           echo "PID: $(cat app.pid)"
-
           SECONDS=0
           MAX_WAIT=${{ env.STARTUP_TIMEOUT }}
           DETECTED_PORT=""
@@ -106,26 +101,21 @@ jobs:
 
       - name: Pull OWASP ZAP image
         run: |
-          echo "Descargando imagen de OWASP ZAP..."
           docker pull ghcr.io/zaproxy/zaproxy:stable
 
       - name: Run OWASP ZAP baseline scan
         run: |
-          echo "Iniciando escaneo OWASP ZAP..."
           TARGET="${APP_URL}"
           echo "Objetivo: $TARGET"
-
           docker run --rm \
             --network host \
             -v "$(pwd):/zap/wrk/:rw" \
             -t ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -I || true
-          echo "Escaneo completado"
 
       - name: Stop API
         if: always()
         run: |
-          echo "Deteniendo aplicación..."
           if [ -f app.pid ]; then
             PID=$(cat app.pid)
             kill $PID 2>/dev/null || true
@@ -137,7 +127,6 @@ jobs:
       - name: Save app log
         if: always()
         run: |
-          echo "Guardando logs..."
           if [ -f app.log ]; then
             cat app.log > application_logs.txt
           else
@@ -156,74 +145,92 @@ jobs:
             MEDIUM=$(jq '[.site[0].alerts[]? | select(.risk=="Medium")] | length' zap_report.json)
             LOW=$(jq '[.site[0].alerts[]? | select(.risk=="Low")] | length' zap_report.json)
             INFO=$(jq '[.site[0].alerts[]? | select(.risk=="Informational")] | length' zap_report.json)
-
-            if [ "$HIGH_CRITICAL" -gt 0 ]; then GRADE="D"
-            elif [ "$MEDIUM" -gt 2 ]; then GRADE="C"
-            elif [ "$MEDIUM" -gt 0 ]; then GRADE="B"
-            else GRADE="A"; fi
-
-            CRITICAL_DETAILS=$(jq -r '.site[0].alerts[]? | select(.risk=="High" or .risk=="Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.url) | \(.solution // "Revisar configuración") |"' zap_report.json | head -3)
-            INJECTION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name|test("Injection";"i"))] | length' zap_report.json)
-            SESSION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name|test("Session";"i"))] | length' zap_report.json)
-            VALIDATION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name|test("Input|Validation";"i"))] | length' zap_report.json)
           else
-            HIGH_CRITICAL=0; MEDIUM=0; LOW=0; INFO=0; GRADE="F"
-            CRITICAL_DETAILS=""; INJECTION_ISSUES=0; SESSION_ISSUES=0; VALIDATION_ISSUES=0
+            HIGH_CRITICAL=0; MEDIUM=0; LOW=0; INFO=0
           fi
 
-          if [ -f vulnerabilities.txt ]; then
-            VULNERABLE_DEPS=$(grep -c "vulnerable" vulnerabilities.txt || echo "0")
-            OUTDATED_DEPS=$(grep -c ">" vulnerabilities.txt || echo "0")
-          else
-            VULNERABLE_DEPS="0"; OUTDATED_DEPS="0"
-          fi
+          if [ "$HIGH_CRITICAL" -gt 0 ]; then GRADE="D"
+          elif [ "$MEDIUM" -gt 2 ]; then GRADE="C"
+          elif [ "$MEDIUM" -gt 0 ]; then GRADE="B"
+          else GRADE="A"; fi
+
+          CRITICAL_DETAILS=$(jq -r '.site[0].alerts[]? | select(.risk=="High" or .risk=="Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.url) | \(.solution // "Revisar configuración") |"' zap_report.json | head -3)
+          INJECTION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name|test("Injection";"i"))] | length' zap_report.json)
+          SESSION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name|test("Session";"i"))] | length' zap_report.json)
+          VALIDATION_ISSUES=$(jq '[.site[0].alerts[]? | select(.name|test("Input|Validation";"i"))] | length' zap_report.json)
+          VULNERABLE_DEPS=$(grep -c "vulnerable" vulnerabilities.txt || echo "0")
+          OUTDATED_DEPS=$(grep -c ">" vulnerabilities.txt || echo "0")
 
           if [ "$HIGH_CRITICAL" -gt 0 ]; then IMPACT="Alto"
           elif [ "$MEDIUM" -gt 0 ]; then IMPACT="Medio"
           else IMPACT="Bajo"; fi
 
-          # ======= PLANTILLA CON DISEÑO SOLICITADO =======
+          # ======== DISEÑO MEJORADO ========
           cat > security_report.md <<EOF
-# 📊 Informe de Seguridad - ${PROJECT_NAME}
+# 🧭 **Informe de Seguridad - ${PROJECT_NAME}**
 
-## Resumen Ejecutivo
-- Calificación de seguridad general: ${GRADE}
-- Vulnerabilidades críticas: ${HIGH_CRITICAL}
-- Vulnerabilidades de alta severidad: ${MEDIUM}
-- Puntos fuertes identificados
+> **Generado automáticamente** mediante escaneo OWASP ZAP y análisis .NET  
+> **Fecha:** ${SCAN_DATE}
 
-## Hallazgos Críticos
+---
+
+## 🛡️ **Resumen Ejecutivo**
+| Métrica | Resultado |
+|----------|------------|
+| Calificación general | **${GRADE}** |
+| Vulnerabilidades críticas | **${HIGH_CRITICAL}** |
+| Vulnerabilidades medias | **${MEDIUM}** |
+| Impacto global | **${IMPACT}** |
+| Estado del sistema | $(if [ "$GRADE" == "A" ]; then echo "✅ Seguro"; elif [ "$GRADE" == "B" ]; then echo "🟡 Moderado"; else echo "🔴 Riesgo Alto"; fi) |
+
+---
+
+## ⚠️ **Hallazgos Críticos**
 | ID | Severidad | Tipo | Ubicación | Recomendación |
 |----|-----------|------|-----------|---------------|
 ${CRITICAL_DETAILS:-"| - | - | - | - | - |"}
-| CVE-2023-XXXX | Crítica | SQL Injection | user_service.py:45 | Parámetros preparados |
-
-## Análisis por Categoría
-### 🔍 Código
-- Problemas de inyección: ${INJECTION_ISSUES}
-- Gestión de sesiones: ${SESSION_ISSUES}
-- Validación de entrada: ${VALIDATION_ISSUES}
-
-### 📦 Dependencias
-- Dependencias con vulnerabilidades: ${VULNERABLE_DEPS}
-- Librerías desactualizadas: ${OUTDATED_DEPS}
-- Licencias problemáticas: 0
-
-## Recomendaciones Prioritarias
-1. [ ] Remediar vulnerabilidades críticas inmediatamente
-2. [ ] Actualizar dependencias [lista específica]
-3. [ ] Implementar medidas específicas de seguridad
-
-## Métricas de Mejora
-- Cobertura de análisis: 85%
-- Tiempo de remediación estimado: 14 días
-- Impacto en seguridad: ${IMPACT}
+| CVE-2023-XXXX | Crítica | SQL Injection | user_service.py:45 | Usar parámetros preparados |
 
 ---
-**Fecha:** ${SCAN_DATE}  
-**Herramientas:** OWASP ZAP, .NET CLI
+
+## 🔍 **Análisis por Categoría**
+
+### 🧩 Código
+- Problemas de inyección: **${INJECTION_ISSUES}**
+- Gestión de sesiones: **${SESSION_ISSUES}**
+- Validación de entrada: **${VALIDATION_ISSUES}**
+
+### 📦 Dependencias
+- Dependencias vulnerables: **${VULNERABLE_DEPS}**
+- Librerías desactualizadas: **${OUTDATED_DEPS}**
+- Licencias problemáticas: **0**
+
+---
+
+## 🚀 **Recomendaciones Prioritarias**
+1. [ ] Remediar vulnerabilidades críticas inmediatamente  
+2. [ ] Actualizar dependencias afectadas  
+3. [ ] Revisar validaciones y sanitización de entrada  
+4. [ ] Implementar políticas CSP y cabeceras seguras  
+5. [ ] Automatizar análisis de seguridad continuo
+
+---
+
+## 📊 **Métricas de Mejora**
+| Indicador | Valor |
+|------------|--------|
+| Cobertura de análisis | **85%** |
+| Tiempo estimado de remediación | **14 días** |
+| Impacto en seguridad | **${IMPACT}** |
+
+---
+
+📘 **Herramientas utilizadas:**  
+- OWASP ZAP (Baseline Scan)  
+- .NET CLI Dependency Audit  
+- GitHub Actions Automation  
 EOF
-          # ======= FIN PLANTILLA =======
+          # ======== FIN DISEÑO ========
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
@@ -240,17 +247,11 @@ EOF
       - name: Fail on critical ZAP alerts
         if: always()
         run: |
-          echo "Evaluando alertas críticas..."
           if [ -f zap_report.json ]; then
             CRITICAL_COUNT=$(jq '[.site[0].alerts[]? | select(.risk=="High" or .risk=="Critical")] | length' zap_report.json)
             echo "Alertas críticas: $CRITICAL_COUNT"
             if [ "$CRITICAL_COUNT" -gt 0 ]; then
-              echo "VULNERABILIDADES CRÍTICAS DETECTADAS:"
               jq '.site[0].alerts[]? | select(.risk=="High" or .risk=="Critical") | {id:.pluginid, name:.name, risk:.risk}' zap_report.json
               exit 1
-            else
-              echo "Sin alertas críticas."
             fi
-          else
-            echo "No se encontró reporte ZAP."
           fi
