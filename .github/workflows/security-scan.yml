@@ -10,12 +10,12 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     env:
-      # CONFIGURACIÓN PARA TU PROYECTO
+      # CONFIGURACION PARA TU PROYECTO
       APP_PROJECT: "./Distribuidora_La_Central.Web/Distribuidora_La_Central.Web.csproj"
       STARTUP_TIMEOUT: 90
 
     steps:
-    # Paso 1: Obtener el código del repositorio
+    # Paso 1: Obtener el codigo del repositorio
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
         echo ""
         echo "=== CONTENIDO DE CADA PROYECTO ==="
         for proj in $(find . -name "*.csproj"); do
-          echo "🔍 Proyecto: $proj"
+          echo "Proyecto: $proj"
           echo "   Target Framework:"
           grep -oP '<TargetFramework>[^<]+' "$proj" | head -1 || echo "   No encontrado"
           echo ""
@@ -44,12 +44,12 @@ jobs:
       run: |
         echo "Buscando archivo del proyecto: ${{ env.APP_PROJECT }}"
         if [ ! -f "${{ env.APP_PROJECT }}" ]; then
-          echo "❌ ERROR: El archivo del proyecto no existe: ${{ env.APP_PROJECT }}"
+          echo "ERROR: El archivo del proyecto no existe: ${{ env.APP_PROJECT }}"
           echo "Archivos .csproj encontrados en el repositorio:"
           find . -name "*.csproj" -type f
           exit 1
         else
-          echo "✅ Archivo del proyecto encontrado: ${{ env.APP_PROJECT }}"
+          echo "Archivo del proyecto encontrado: ${{ env.APP_PROJECT }}"
         fi
 
     # Paso 5: Restaurar y compilar SOLO el proyecto Web
@@ -61,12 +61,12 @@ jobs:
         echo "Compilando proyecto Web..."
         dotnet build "${{ env.APP_PROJECT }}" -c Release --no-restore --verbosity minimal
         
-        echo "✅ Compilación completada"
+        echo "Compilacion completada"
 
-    # Paso 6: Análisis de dependencias vulnerables
+    # Paso 6: Analisis de dependencias vulnerables
     - name: List vulnerable packages (SCA light)
       run: |
-        echo "==== ANÁLISIS DE DEPENDENCIAS ====" > vulnerabilities.txt
+        echo "==== ANALISIS DE DEPENDENCIAS ====" > vulnerabilities.txt
         echo "Fecha: $(date)" >> vulnerabilities.txt
         echo "Proyecto: ${{ env.APP_PROJECT }}" >> vulnerabilities.txt
         echo "" >> vulnerabilities.txt
@@ -78,38 +78,38 @@ jobs:
         echo "==== PAQUETES DESACTUALIZADOS ====" >> vulnerabilities.txt
         dotnet list "${{ env.APP_PROJECT }}" package --outdated --include-transitive >> vulnerabilities.txt 2>&1 || echo "No se encontraron paquetes desactualizados" >> vulnerabilities.txt
         
-        echo "Análisis de dependencias completado"
+        echo "Analisis de dependencias completado"
 
-    # Paso 7: Iniciar aplicación y detectar puerto automáticamente
+    # Paso 7: Iniciar aplicacion y detectar puerto automaticamente
     - name: Start Web API and detect port
       run: |
-        echo "Iniciando aplicación Web/API..."
+        echo "Iniciando aplicacion Web/API..."
         
-        # Iniciar aplicación sin especificar puerto para que use el configurado por defecto
+        # Iniciar aplicacion sin especificar puerto para que use el configurado por defecto
         nohup dotnet run --project "${{ env.APP_PROJECT }}" --configuration Release &> app.log &
         
         echo $! > app.pid
         echo "PID del proceso: $(cat app.pid)"
         
-        echo "Esperando que la aplicación esté disponible..."
+        echo "Esperando que la aplicacion este disponible..."
         SECONDS=0
         MAX_WAIT=${{ env.STARTUP_TIMEOUT }}
         DETECTED_PORT=""
         APP_URL=""
         
         while [ $SECONDS -lt $MAX_WAIT ]; do
-          # Buscar en logs el puerto donde se está ejecutando
+          # Buscar en logs el puerto donde se esta ejecutando
           if [ -z "$DETECTED_PORT" ]; then
             DETECTED_PORT=$(grep -o "Now listening on: http://[^:]*:\([0-9]*\)" app.log | tail -1 | cut -d: -f4 || true)
             if [ -n "$DETECTED_PORT" ]; then
               APP_URL="http://localhost:$DETECTED_PORT"
-              echo "✅ Puerto detectado: $DETECTED_PORT"
+              echo "Puerto detectado: $DETECTED_PORT"
               echo "APP_URL=$APP_URL" >> $GITHUB_ENV
             fi
           fi
           
           if [ -n "$APP_URL" ] && curl -s -f "$APP_URL" > /dev/null 2>&1; then
-            echo "✅ Aplicación disponible en $APP_URL después de ${SECONDS}s"
+            echo "Aplicacion disponible en $APP_URL despues de ${SECONDS}s"
             break
           fi
           
@@ -118,8 +118,8 @@ jobs:
         done
         
         if [ -z "$APP_URL" ] || ! curl -s -f "$APP_URL" > /dev/null 2>&1; then
-          echo "❌ ERROR: La aplicación no respondió en $MAX_WAIT segundos"
-          echo "=== Últimas 50 líneas del log ==="
+          echo "ERROR: La aplicacion no respondio en $MAX_WAIT segundos"
+          echo "=== Ultimas 50 lineas del log ==="
           tail -50 app.log || true
           echo "=== Buscando puertos en logs ==="
           grep -E "(listening|Listening|port|Port|http://)" app.log || true
@@ -137,7 +137,7 @@ jobs:
       run: |
         echo "Iniciando escaneo de seguridad con OWASP ZAP..."
         
-        # Usar la URL detectada automáticamente
+        # Usar la URL detectada automaticamente
         TARGET="$APP_URL"
         echo "Objetivo del escaneo: $TARGET"
         
@@ -146,18 +146,18 @@ jobs:
           --network host \
           -v "$(pwd):/zap/wrk/:rw" \
           -t owasp/zap2docker-stable \
-          zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -I -c zap-config.conf || true
+          zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -I || true
         
         echo "Escaneo de ZAP completado"
         
       env:
         ZAP_MAX_MEM: 2048m
 
-    # Paso 10: Detener la aplicación
+    # Paso 10: Detener la aplicacion
     - name: Stop API
       if: always()
       run: |
-        echo "Deteniendo la aplicación..."
+        echo "Deteniendo la aplicacion..."
         if [ -f app.pid ]; then
           PID=$(cat app.pid)
           echo "Terminando proceso $PID"
@@ -171,11 +171,11 @@ jobs:
     - name: Save app log
       if: always()
       run: |
-        echo "Guardando logs de la aplicación..."
+        echo "Guardando logs de la aplicacion..."
         if [ -f app.log ]; then
           cat app.log > application_logs.txt
         else
-          echo "No se encontró app.log" > application_logs.txt
+          echo "No se encontro app.log" > application_logs.txt
         fi
 
     # Paso 12: Generar informe ejecutivo completo
@@ -184,7 +184,7 @@ jobs:
       run: |
         echo "Generando informe ejecutivo de seguridad..."
         
-        # Calcular métricas
+        # Calcular metricas
         VULN_COUNT=0
         HIGH_VULN_COUNT=0
         MEDIUM_VULN_COUNT=0
@@ -202,7 +202,7 @@ jobs:
           LOW_VULN_COUNT=$(jq '[.site[0].alerts[]? | select(.risk == "Low" or .risk == "Informational")] | length' zap_report.json 2>/dev/null || echo "0")
         fi
         
-        # Calcular calificación de seguridad
+        # Calcular calificacion de seguridad
         TOTAL_CRITICAL=$((HIGH_VULN_COUNT + VULN_COUNT))
         if [ $TOTAL_CRITICAL -eq 0 ]; then
           SECURITY_GRADE="A"
@@ -218,50 +218,50 @@ jobs:
           GRADE_DESC="Deficiente"
         else
           SECURITY_GRADE="F"
-          GRADE_DESC="Crítica"
+          GRADE_DESC="Critica"
         fi
         
         # Crear informe ejecutivo
         cat > executive_report.md << EOF
-# 📊 Informe de Seguridad - Distribuidora La Central
+# INFORME DE SEGURIDAD - DISTRIBUIDORA LA CENTRAL
 
 ## Resumen Ejecutivo
-- **Calificación de seguridad general:** $SECURITY_GRADE ($GRADE_DESC)
-- **Vulnerabilidades críticas:** $HIGH_VULN_COUNT
-- **Vulnerabilidades de alta severidad:** $VULN_COUNT
-- **Puntos fuertes identificados:** Análisis automatizado implementado, Pipeline de seguridad activo
+- Calificacion de seguridad general: $SECURITY_GRADE ($GRADE_DESC)
+- Vulnerabilidades criticas: $HIGH_VULN_COUNT
+- Vulnerabilidades de alta severidad: $VULN_COUNT
+- Puntos fuertes identificados: Analisis automatizado implementado, Pipeline de seguridad activo
 
-## Hallazgos Críticos
-| ID | Severidad | Tipo | Ubicación | Recomendación |
+## Hallazgos Criticos
+| ID | Severidad | Tipo | Ubicacion | Recomendacion |
 |----|-----------|------|-----------|---------------|
 EOF
 
-        # Agregar hallazgos específicos si existen
+        # Agregar hallazgos especificos si existen
         if [ -f zap_report.json ] && [ "$HIGH_VULN_COUNT" -gt 0 ]; then
-          jq -r '.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.uri) | \(.solution // "Revisar documentación") |"' zap_report.json >> executive_report.md 2>/dev/null || true
+          jq -r '.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.uri) | \(.solution // "Revisar documentacion") |"' zap_report.json >> executive_report.md 2>/dev/null || true
         else
-          echo "| - | - | No se encontraron hallazgos críticos | - | - |" >> executive_report.md
+          echo "| - | - | No se encontraron hallazgos criticos | - | - |" >> executive_report.md
         fi
 
         cat >> executive_report.md << EOF
 
-## Análisis por Categoría
-### 🔍 Código
-- **Problemas de inyección:** $HIGH_VULN_COUNT
-- **Gestión de sesiones:** Por analizar
-- **Validación de entrada:** Por analizar
+## Analisis por Categoria
+### CODIGO
+- Problemas de inyeccion: $HIGH_VULN_COUNT
+- Gestion de sesiones: Por analizar
+- Validacion de entrada: Por analizar
 
-### 📦 Dependencias
-- **Dependencias con vulnerabilidades:** $VULN_COUNT
-- **Librerías desactualizadas:** $OUTDATED_COUNT
-- **Licencias problemáticas:** Por analizar
+### DEPENDENCIAS
+- Dependencias con vulnerabilidades: $VULN_COUNT
+- Librerias desactualizadas: $OUTDATED_COUNT
+- Licencias problematicas: Por analizar
 
 ## Recomendaciones Prioritarias
 EOF
 
         # Recomendaciones basadas en hallazgos
         if [ "$HIGH_VULN_COUNT" -gt 0 ]; then
-          echo "1. [ ] Remediar $HIGH_VULN_COUNT vulnerabilidades críticas inmediatamente" >> executive_report.md
+          echo "1. [ ] Remediar $HIGH_VULN_COUNT vulnerabilidades criticas inmediatamente" >> executive_report.md
         fi
         
         if [ "$VULN_COUNT" -gt 0 ]; then
@@ -269,30 +269,30 @@ EOF
         fi
         
         if [ "$OUTDATED_COUNT" -gt 0 ]; then
-          echo "3. [ ] Actualizar $OUTDATED_COUNT librerías desactualizadas" >> executive_report.md
+          echo "3. [ ] Actualizar $OUTDATED_COUNT librerias desactualizadas" >> executive_report.md
         fi
         
         cat >> executive_report.md << EOF
-4. [ ] Implementar revisión de código de seguridad
+4. [ ] Implementar revision de codigo de seguridad
 5. [ ] Configurar escaneo continuo en pipeline
 
-## Métricas de Mejora
-- **Cobertura de análisis:** $( [ -f zap_report.json ] && echo "85%" || echo "60%" )
-- **Tiempo de remediación estimado:** $((HIGH_VULN_COUNT * 2 + VULN_COUNT * 1)) días
-- **Impacto en seguridad:** $( [ $TOTAL_CRITICAL -gt 5 ] && echo "Alto" || ([ $TOTAL_CRITICAL -gt 2 ] && echo "Medio" || echo "Bajo") )
+## Metricas de Mejora
+- Cobertura de analisis: $( [ -f zap_report.json ] && echo "85%" || echo "60%" )
+- Tiempo de remediacion estimado: $((HIGH_VULN_COUNT * 2 + VULN_COUNT * 1)) dias
+- Impacto en seguridad: $( [ $TOTAL_CRITICAL -gt 5 ] && echo "Alto" || ([ $TOTAL_CRITICAL -gt 2 ] && echo "Medio" || echo "Bajo") )
 
-## 📋 Detalles Técnicos
-- **Proyecto analizado:** ${{ env.APP_PROJECT }}
-- **URL escaneada:** ${APP_URL:-No detectada}
-- **Fecha del análisis:** $(date)
-- **Entorno:** GitHub Actions - Ubuntu Latest
-- **Herramientas:** OWASP ZAP, .NET Security Scan
+## Detalles Tecnicos
+- Proyecto analizado: ${{ env.APP_PROJECT }}
+- URL escaneada: ${APP_URL:-No detectada}
+- Fecha del analisis: $(date)
+- Entorno: GitHub Actions - Ubuntu Latest
+- Herramientas: OWASP ZAP, .NET Security Scan
 
 ---
-*Este informe fue generado automáticamente - Revisar hallazgos antes de producción*
+*Este informe fue generado automaticamente - Revisar hallazgos antes de produccion*
 EOF
 
-        echo "✅ Informe ejecutivo generado"
+        echo "Informe ejecutivo generado"
         echo "=== VISTA PREVIA DEL INFORME ==="
         cat executive_report.md
 
@@ -303,32 +303,31 @@ EOF
         name: security-scan-reports
         path: |
           executive_report.md
-          security_summary.md
           vulnerabilities.txt
           zap_report.html
           zap_report.json
           application_logs.txt
         retention-days: 30
 
-    # Paso 14: Fallar el job si hay alertas críticas
+    # Paso 14: Fallar el job si hay alertas criticas
     - name: Fail on critical ZAP alerts
       if: always()
       run: |
-        echo "Evaluando alertas críticas..."
+        echo "Evaluando alertas criticas..."
         
         if [ -f zap_report.json ]; then
           CRITICAL_COUNT=$(jq '[.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical")] | length' zap_report.json 2>/dev/null || echo "0")
           
-          echo "🔍 Alertas HIGH/CRITICAL encontradas: $CRITICAL_COUNT"
+          echo "Alertas HIGH/CRITICAL encontradas: $CRITICAL_COUNT"
           
           if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            echo "❌ SE DETECTARON VULNERABILIDADES CRÍTICAS"
+            echo "SE DETECTARON VULNERABILIDADES CRITICAS"
             echo "=== DETALLES ==="
             jq '.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical") | {id: .pluginid, name: .name, risk: .risk, description: .description}' zap_report.json 2>/dev/null || true
             exit 1
           else
-            echo "✅ No se encontraron alertas críticas"
+            echo "No se encontraron alertas criticas"
           fi
         else
-          echo "⚠️  No se pudo evaluar reporte ZAP"
+          echo "No se pudo evaluar reporte ZAP"
         fi
