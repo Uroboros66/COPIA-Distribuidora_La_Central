@@ -178,123 +178,40 @@ jobs:
           echo "No se encontro app.log" > application_logs.txt
         fi
 
-    # Paso 12: Generar informe ejecutivo completo
-    - name: Generate executive report
+    # Paso 12: Generar reporte simple
+    - name: Generate security summary
       if: always()
       run: |
-        echo "Generando informe ejecutivo de seguridad..."
+        echo "Generando resumen de seguridad..."
         
-        # Calcular metricas
-        VULN_COUNT=0
-        HIGH_VULN_COUNT=0
-        MEDIUM_VULN_COUNT=0
-        LOW_VULN_COUNT=0
-        OUTDATED_COUNT=0
+        echo "# RESUMEN DE SEGURIDAD" > security_summary.md
+        echo "Fecha: $(date)" >> security_summary.md
+        echo "Proyecto: ${{ env.APP_PROJECT }}" >> security_summary.md
+        echo "" >> security_summary.md
         
+        echo "## DEPENDENCIAS" >> security_summary.md
         if [ -f vulnerabilities.txt ]; then
-          VULN_COUNT=$(grep -c "vulnerable" vulnerabilities.txt || echo "0")
-          OUTDATED_COUNT=$(grep -c ">" vulnerabilities.txt || echo "0")
+          echo "Analisis de dependencias completado" >> security_summary.md
+        else
+          echo "No se pudo generar analisis de dependencias" >> security_summary.md
         fi
+        echo "" >> security_summary.md
         
+        echo "## ESCANEO OWASP ZAP" >> security_summary.md
         if [ -f zap_report.json ]; then
-          HIGH_VULN_COUNT=$(jq '[.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical")] | length' zap_report.json 2>/dev/null || echo "0")
-          MEDIUM_VULN_COUNT=$(jq '[.site[0].alerts[]? | select(.risk == "Medium")] | length' zap_report.json 2>/dev/null || echo "0")
-          LOW_VULN_COUNT=$(jq '[.site[0].alerts[]? | select(.risk == "Low" or .risk == "Informational")] | length' zap_report.json 2>/dev/null || echo "0")
-        fi
-        
-        # Calcular calificacion de seguridad
-        TOTAL_CRITICAL=$((HIGH_VULN_COUNT + VULN_COUNT))
-        if [ $TOTAL_CRITICAL -eq 0 ]; then
-          SECURITY_GRADE="A"
-          GRADE_DESC="Excelente"
-        elif [ $TOTAL_CRITICAL -le 2 ]; then
-          SECURITY_GRADE="B"
-          GRADE_DESC="Buena"
-        elif [ $TOTAL_CRITICAL -le 5 ]; then
-          SECURITY_GRADE="C"
-          GRADE_DESC="Regular"
-        elif [ $TOTAL_CRITICAL -le 10 ]; then
-          SECURITY_GRADE="D"
-          GRADE_DESC="Deficiente"
+          HIGH_CRITICAL=$(jq '[.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical")] | length' zap_report.json 2>/dev/null || echo "0")
+          MEDIUM=$(jq '[.site[0].alerts[]? | select(.risk == "Medium")] | length' zap_report.json 2>/dev/null || echo "0")
+          LOW_INFO=$(jq '[.site[0].alerts[]? | select(.risk == "Low" or .risk == "Informational")] | length' zap_report.json 2>/dev/null || echo "0")
+          
+          echo "Alertas High/Critical: $HIGH_CRITICAL" >> security_summary.md
+          echo "Alertas Medium: $MEDIUM" >> security_summary.md
+          echo "Alertas Low/Informational: $LOW_INFO" >> security_summary.md
         else
-          SECURITY_GRADE="F"
-          GRADE_DESC="Critica"
+          echo "No se pudo generar reporte ZAP" >> security_summary.md
         fi
         
-        # Crear informe ejecutivo
-        cat > executive_report.md << 'EOF'
-# INFORME DE SEGURIDAD - DISTRIBUIDORA LA CENTRAL
-
-## Resumen Ejecutivo
-- Calificacion de seguridad general: $SECURITY_GRADE ($GRADE_DESC)
-- Vulnerabilidades criticas: $HIGH_VULN_COUNT
-- Vulnerabilidades de alta severidad: $VULN_COUNT
-- Puntos fuertes identificados: Analisis automatizado implementado, Pipeline de seguridad activo
-
-## Hallazgos Criticos
-| ID | Severidad | Tipo | Ubicacion | Recomendacion |
-|----|-----------|------|-----------|---------------|
-EOF
-
-        # Agregar hallazgos especificos si existen
-        if [ -f zap_report.json ] && [ "$HIGH_VULN_COUNT" -gt 0 ]; then
-          jq -r '.site[0].alerts[]? | select(.risk == "High" or .risk == "Critical") | "| \(.pluginid) | \(.risk) | \(.name) | \(.uri) | \(.solution // "Revisar documentacion") |"' zap_report.json >> executive_report.md 2>/dev/null || true
-        else
-          echo "| - | - | No se encontraron hallazgos criticos | - | - |" >> executive_report.md
-        fi
-
-        cat >> executive_report.md << 'EOF'
-
-## Analisis por Categoria
-### CODIGO
-- Problemas de inyeccion: $HIGH_VULN_COUNT
-- Gestion de sesiones: Por analizar
-- Validacion de entrada: Por analizar
-
-### DEPENDENCIAS
-- Dependencias con vulnerabilidades: $VULN_COUNT
-- Librerias desactualizadas: $OUTDATED_COUNT
-- Licencias problematicas: Por analizar
-
-## Recomendaciones Prioritarias
-EOF
-
-        # Recomendaciones basadas en hallazgos
-        if [ "$HIGH_VULN_COUNT" -gt 0 ]; then
-          echo "1. [ ] Remediar $HIGH_VULN_COUNT vulnerabilidades criticas inmediatamente" >> executive_report.md
-        fi
-        
-        if [ "$VULN_COUNT" -gt 0 ]; then
-          echo "2. [ ] Actualizar $VULN_COUNT dependencias vulnerables" >> executive_report.md
-        fi
-        
-        if [ "$OUTDATED_COUNT" -gt 0 ]; then
-          echo "3. [ ] Actualizar $OUTDATED_COUNT librerias desactualizadas" >> executive_report.md
-        fi
-        
-        cat >> executive_report.md << 'EOF'
-4. [ ] Implementar revision de codigo de seguridad
-5. [ ] Configurar escaneo continuo en pipeline
-
-## Metricas de Mejora
-- Cobertura de analisis: $([ -f zap_report.json ] && echo "85%" || echo "60%")
-- Tiempo de remediacion estimado: $((HIGH_VULN_COUNT * 2 + VULN_COUNT * 1)) dias
-- Impacto en seguridad: $([ $TOTAL_CRITICAL -gt 5 ] && echo "Alto" || ([ $TOTAL_CRITICAL -gt 2 ] && echo "Medio" || echo "Bajo"))
-
-## Detalles Tecnicos
-- Proyecto analizado: $APP_PROJECT
-- URL escaneada: $APP_URL
-- Fecha del analisis: $(date)
-- Entorno: GitHub Actions - Ubuntu Latest
-- Herramientas: OWASP ZAP, .NET Security Scan
-
----
-*Este informe fue generado automaticamente - Revisar hallazgos antes de produccion*
-EOF
-
-        echo "Informe ejecutivo generado"
-        echo "=== VISTA PREVIA DEL INFORME ==="
-        cat executive_report.md
+        echo "Resumen generado:"
+        cat security_summary.md
 
     # Paso 13: Subir todos los reportes como artefactos
     - name: Upload reports
@@ -302,7 +219,7 @@ EOF
       with:
         name: security-scan-reports
         path: |
-          executive_report.md
+          security_summary.md
           vulnerabilities.txt
           zap_report.html
           zap_report.json
