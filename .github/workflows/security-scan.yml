@@ -165,72 +165,63 @@ jobs:
           elif [ "$MEDIUM" -gt 0 ]; then IMPACT="Medio"
           else IMPACT="Bajo"; fi
 
-          # ======== DISEÑO MEJORADO ========
           cat > security_report.md <<EOF
-# 🧭 **Informe de Seguridad - ${PROJECT_NAME}**
+# Informe de Seguridad - ${PROJECT_NAME}
 
-> **Generado automáticamente** mediante escaneo OWASP ZAP y análisis .NET  
-> **Fecha:** ${SCAN_DATE}
+Fecha: ${SCAN_DATE}
 
----
+------------------------------------------------------------
+## Resumen Ejecutivo
+------------------------------------------------------------
+Calificación general: ${GRADE}
+Vulnerabilidades críticas: ${HIGH_CRITICAL}
+Vulnerabilidades medias: ${MEDIUM}
+Impacto global: ${IMPACT}
 
-## 🛡️ **Resumen Ejecutivo**
-| Métrica | Resultado |
-|----------|------------|
-| Calificación general | **${GRADE}** |
-| Vulnerabilidades críticas | **${HIGH_CRITICAL}** |
-| Vulnerabilidades medias | **${MEDIUM}** |
-| Impacto global | **${IMPACT}** |
-| Estado del sistema | $(if [ "$GRADE" == "A" ]; then echo "✅ Seguro"; elif [ "$GRADE" == "B" ]; then echo "🟡 Moderado"; else echo "🔴 Riesgo Alto"; fi) |
-
----
-
-## ⚠️ **Hallazgos Críticos**
+------------------------------------------------------------
+## Hallazgos Críticos
+------------------------------------------------------------
 | ID | Severidad | Tipo | Ubicación | Recomendación |
 |----|-----------|------|-----------|---------------|
 ${CRITICAL_DETAILS:-"| - | - | - | - | - |"}
 | CVE-2023-XXXX | Crítica | SQL Injection | user_service.py:45 | Usar parámetros preparados |
 
----
+------------------------------------------------------------
+## Análisis por Categoría
+------------------------------------------------------------
+Código:
+  - Problemas de inyección: ${INJECTION_ISSUES}
+  - Gestión de sesiones: ${SESSION_ISSUES}
+  - Validación de entrada: ${VALIDATION_ISSUES}
 
-## 🔍 **Análisis por Categoría**
+Dependencias:
+  - Dependencias vulnerables: ${VULNERABLE_DEPS}
+  - Librerías desactualizadas: ${OUTDATED_DEPS}
+  - Licencias problemáticas: 0
 
-### 🧩 Código
-- Problemas de inyección: **${INJECTION_ISSUES}**
-- Gestión de sesiones: **${SESSION_ISSUES}**
-- Validación de entrada: **${VALIDATION_ISSUES}**
+------------------------------------------------------------
+## Recomendaciones Prioritarias
+------------------------------------------------------------
+1. Remediar vulnerabilidades críticas inmediatamente
+2. Actualizar dependencias afectadas
+3. Revisar validaciones y sanitización de entrada
+4. Implementar políticas CSP y cabeceras seguras
+5. Automatizar análisis de seguridad continuo
 
-### 📦 Dependencias
-- Dependencias vulnerables: **${VULNERABLE_DEPS}**
-- Librerías desactualizadas: **${OUTDATED_DEPS}**
-- Licencias problemáticas: **0**
+------------------------------------------------------------
+## Métricas de Mejora
+------------------------------------------------------------
+Cobertura de análisis: 85%
+Tiempo estimado de remediación: 14 días
+Impacto en seguridad: ${IMPACT}
 
----
-
-## 🚀 **Recomendaciones Prioritarias**
-1. [ ] Remediar vulnerabilidades críticas inmediatamente  
-2. [ ] Actualizar dependencias afectadas  
-3. [ ] Revisar validaciones y sanitización de entrada  
-4. [ ] Implementar políticas CSP y cabeceras seguras  
-5. [ ] Automatizar análisis de seguridad continuo
-
----
-
-## 📊 **Métricas de Mejora**
-| Indicador | Valor |
-|------------|--------|
-| Cobertura de análisis | **85%** |
-| Tiempo estimado de remediación | **14 días** |
-| Impacto en seguridad | **${IMPACT}** |
-
----
-
-📘 **Herramientas utilizadas:**  
-- OWASP ZAP (Baseline Scan)  
-- .NET CLI Dependency Audit  
-- GitHub Actions Automation  
+------------------------------------------------------------
+Herramientas utilizadas:
+------------------------------------------------------------
+- OWASP ZAP (Baseline Scan)
+- .NET CLI Dependency Audit
+- GitHub Actions Automation
 EOF
-          # ======== FIN DISEÑO ========
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
