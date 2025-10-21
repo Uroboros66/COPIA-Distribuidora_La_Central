@@ -177,7 +177,7 @@ jobs:
           echo "No se encontro app.log" > application_logs.txt
         fi
 
-    # Paso 12: Generar reporte con diseño específico
+    # Paso 12: Generar reporte con diseño específico (CORREGIDO)
     - name: Generate professional security report
       if: always()
       run: |
@@ -242,32 +242,48 @@ jobs:
           IMPACT="Bajo"
         fi
         
-        # Generar el informe con el diseño exacto solicitado
-        cat > security_report.md << EOF
-# 📊 Informe de Seguridad - $PROJECT_NAME
+        # Generar el informe usando printf para evitar problemas con heredoc
+        cat > security_report.md << 'EOF'
+# 📊 Informe de Seguridad - Distribuidora La Central
 
 ## Resumen Ejecutivo
-- Calificación de seguridad general: $GRADE
-- Vulnerabilidades críticas: $HIGH_CRITICAL
-- Vulnerabilidades de alta severidad: $MEDIUM
-- Puntos fuertes identificados: Escaneo automatizado implementado, Pipeline de seguridad activo
-
-## Hallazgos Críticos
-| ID | Severidad | Tipo | Ubicación | Recomendación |
-|----|-----------|------|-----------|---------------|
-$(if [ -n "$CRITICAL_DETAILS" ]; then echo "$CRITICAL_DETAILS"; else echo "| - | - | - | - | - |"; fi)
+EOF
+        
+        # Agregar contenido dinámico usando echo
+        echo "- Calificación de seguridad general: $GRADE" >> security_report.md
+        echo "- Vulnerabilidades críticas: $HIGH_CRITICAL" >> security_report.md
+        echo "- Vulnerabilidades de alta severidad: $MEDIUM" >> security_report.md
+        echo "- Puntos fuertes identificados: Escaneo automatizado implementado, Pipeline de seguridad activo" >> security_report.md
+        echo "" >> security_report.md
+        echo "## Hallazgos Críticos" >> security_report.md
+        echo "| ID | Severidad | Tipo | Ubicación | Recomendación |" >> security_report.md
+        echo "|----|-----------|------|-----------|---------------|" >> security_report.md
+        
+        # Agregar detalles críticos o placeholder
+        if [ -n "$CRITICAL_DETAILS" ]; then
+          echo "$CRITICAL_DETAILS" >> security_report.md
+        else
+          echo "| - | - | - | - | - |" >> security_report.md
+        fi
+        
+        # Continuar con el resto del contenido
+        cat >> security_report.md << 'EOF'
 
 ## Análisis por Categoría
 ### 🔍 Código
-- Problemas de inyección: $INJECTION_ISSUES
-- Gestión de sesiones: $SESSION_ISSUES
-- Validación de entrada: $VALIDATION_ISSUES
-
-### 📦 Dependencias
-- Dependencias con vulnerabilidades: $VULNERABLE_DEPS
-- Librerías desactualizadas: $OUTDATED_DEPS
-- Licencias problemáticas: 0
-
+EOF
+        
+        echo "- Problemas de inyección: $INJECTION_ISSUES" >> security_report.md
+        echo "- Gestión de sesiones: $SESSION_ISSUES" >> security_report.md
+        echo "- Validación de entrada: $VALIDATION_ISSUES" >> security_report.md
+        echo "" >> security_report.md
+        echo "### 📦 Dependencias" >> security_report.md
+        echo "- Dependencias con vulnerabilidades: $VULNERABLE_DEPS" >> security_report.md
+        echo "- Librerías desactualizadas: $OUTDATED_DEPS" >> security_report.md
+        echo "- Licencias problemáticas: 0" >> security_report.md
+        echo "" >> security_report.md
+        
+        cat >> security_report.md << 'EOF'
 ## Recomendaciones Prioritarias
 1. [ ] Remediar vulnerabilidades críticas inmediatamente
 2. [ ] Actualizar dependencias identificadas como vulnerables
@@ -276,17 +292,16 @@ $(if [ -n "$CRITICAL_DETAILS" ]; then echo "$CRITICAL_DETAILS"; else echo "| - |
 5. [ ] Establecer políticas de Content Security Policy
 
 ## Métricas de Mejora
-- Cobertura de análisis: 85%
-- Tiempo de remediación estimado: 14 días
-- Impacto en seguridad: $IMPACT
-
----
-
-**Fecha del escaneo**: $SCAN_DATE  
-**Proyecto**: $PROJECT_NAME  
-**Herramientas utilizadas**: OWASP ZAP, .NET Security Scan
-
 EOF
+        
+        echo "- Cobertura de análisis: 85%" >> security_report.md
+        echo "- Tiempo de remediación estimado: 14 días" >> security_report.md
+        echo "- Impacto en seguridad: $IMPACT" >> security_report.md
+        echo "" >> security_report.md
+        echo "---" >> security_report.md
+        echo "**Fecha del escaneo**: $SCAN_DATE" >> security_report.md
+        echo "**Proyecto**: $PROJECT_NAME" >> security_report.md
+        echo "**Herramientas utilizadas**: OWASP ZAP, .NET Security Scan" >> security_report.md
         
         echo "Informe profesional generado con el diseño solicitado:"
         cat security_report.md
